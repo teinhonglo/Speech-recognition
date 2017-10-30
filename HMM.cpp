@@ -12,8 +12,8 @@ double b[N][M]	= {	{0.7, 0.1, 0.2},
 					{0.1, 0.6, 0.3},
 					{0.3, 0.3, 0.4}};
 
-double δ[T][N];
-int ψ[T][N];					
+double delta[T][N];
+int psi[T][N];					
 int Observation [T] = {0, 0, 2, 1, 2, 1, 0};
 
 double HMM();
@@ -63,30 +63,30 @@ double HMM_backward(int T, int * ObservationState){
 	return p;
 }
 
-double decode(int* o, int T, int* q)
+double decode(int* ObservationState, int T, int* q)
 {
     for (int t=0; t<T; ++t)
         for (int j=0; j<N; ++j)
             if (t == 0)
-                δ[t][j] = π[j] * b[j][o[t]];
+                delta[t][j] = π[j] * b[j][ObservationState[t]];
             else
             {
                 double p = -1e9;
                 for (int i=0; i<N; ++i)
                 {
-                    double w = δ[t-1][i] * a[i][j];
-                    if (w > p) p = w, ψ[t][j] = i;
+                    double w = delta[t-1][i] * a[i][j];
+                    if (w > p) p = w, psi[t][j] = i;
                 }
-                δ[t][j] = p * b[j][o[t]];
+                delta[t][j] = p * b[j][ObservationState[t]];
             }
  
     double p = -1e9;
     for (int j=0; j<N; ++j)
-        if (δ[T-1][j] > p)
-            p = δ[T-1][j], q[T-1] = j;
+        if (delta[T-1][j] > p)
+            p = delta[T-1][j], q[T-1] = j;
  
     for (int t=T-1; t>0; --t)
-        q[t-1] = ψ[t][q[t]];
+        q[t-1] = psi[t][q[t]];
  
     return p;
 }
