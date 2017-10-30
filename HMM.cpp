@@ -12,7 +12,10 @@ double b[N][M]	= {	{0.7, 0.1, 0.2},
 					{0.1, 0.6, 0.3},
 					{0.3, 0.3, 0.4}};
 
+double δ[T][N];
+int ψ[T][N];					
 int Observation [T] = {0, 0, 2, 1, 2, 1, 0};
+
 double HMM();
 int main(void){
 	HMM();
@@ -58,6 +61,34 @@ double HMM_backward(int T, int * ObservationState){
         p += PI[j] * b[j][Observation[0]] * beta[0][j];
 	}
 	return p;
+}
+
+double decode(int* o, int T, int* q)
+{
+    for (int t=0; t<T; ++t)
+        for (int j=0; j<N; ++j)
+            if (t == 0)
+                δ[t][j] = π[j] * b[j][o[t]];
+            else
+            {
+                double p = -1e9;
+                for (int i=0; i<N; ++i)
+                {
+                    double w = δ[t-1][i] * a[i][j];
+                    if (w > p) p = w, ψ[t][j] = i;
+                }
+                δ[t][j] = p * b[j][o[t]];
+            }
+ 
+    double p = -1e9;
+    for (int j=0; j<N; ++j)
+        if (δ[T-1][j] > p)
+            p = δ[T-1][j], q[T-1] = j;
+ 
+    for (int t=T-1; t>0; --t)
+        q[t-1] = ψ[t][q[t]];
+ 
+    return p;
 }
 
 double HMM(){
