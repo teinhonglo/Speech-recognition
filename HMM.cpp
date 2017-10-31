@@ -2,19 +2,20 @@
 
 using namespace std;
 const int N = 3, M = 3, T = 7; // total State N, Number of Observation M, T state
-double PI[N] = {0.5, 0.2, 0.3}; // Initial Probability
+double PI[N] = {0.3, 0.3, 0.4}; // Initial Probability
 // Transition Probability
-double a[N][N] 	= {	{0.6, 0.2, 0.2},
-					{0.5, 0.3, 0.2},
-					{0.4, 0.1, 0.5}};
+double a[N][N] 	= {	{0.2, 0.3, 0.5},
+			{0.2, 0.2, 0.6},
+			{0.4, 0.3, 0.3}};
 // Observation Probability
-double b[N][M]	= {	{0.7, 0.1, 0.2},
-					{0.1, 0.6, 0.3},
-					{0.3, 0.3, 0.4}};
+double b[N][M]	= {	{0.1, 0.8, 0.1},
+			{0.2, 0.1, 0.7},
+			{0.3, 0.4, 0.3}};
 
 double delta[T][N];
 int psi[T][N];					
-int Observation [T] = {0, 0, 2, 1, 2, 1, 0};
+int Observation [T] = {{0, 0, 2, 1, 2, 1, 0},
+		       {}};
 
 double HMM();
 int main(void){
@@ -63,7 +64,7 @@ double HMM_backward(int T, int * ObservationState){
 	return p;
 }
 
-double decode(int* ObservationState, int T, int* q)
+double viterbi(int* ObservationState, int T, int* q)
 {
     for (int t=0; t<T; ++t)
         for (int j=0; j<N; ++j)
@@ -94,5 +95,4 @@ double decode(int* ObservationState, int T, int* q)
 double HMM(){
     cout << HMM_forward(T, Observation) << '\n';
     cout << HMM_backward(T, Observation) << '\n';
-    cout << HMM_forward(T, &Observation[3]) + HMM_backward(T, &Observation[4])<< '\n';
 }
