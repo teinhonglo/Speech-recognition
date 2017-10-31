@@ -5,17 +5,16 @@ const int N = 3, M = 3, T = 7; // total State N, Number of Observation M, T stat
 double PI[N] = {0.3, 0.3, 0.4}; // Initial Probability
 // Transition Probability
 double a[N][N] 	= {	{0.2, 0.3, 0.5},
-			{0.2, 0.2, 0.6},
-			{0.4, 0.3, 0.3}};
+                    {0.2, 0.2, 0.6},
+                    {0.4, 0.3, 0.3}};
 // Observation Probability
 double b[N][M]	= {	{0.1, 0.8, 0.1},
-			{0.2, 0.1, 0.7},
-			{0.3, 0.4, 0.3}};
+                    {0.2, 0.1, 0.7},
+                    {0.3, 0.4, 0.3}};
 
 double delta[T][N];
-int psi[T][N];					
-int Observation [T] = {{0, 0, 2, 1, 2, 1, 0},
-		       {}};
+int psi[T][N];
+int Observation [T] = {0, 2, 0, 2, 2, 0, 0};
 
 double HMM();
 int main(void){
@@ -65,7 +64,7 @@ double HMM_backward(int T, int * ObservationState){
 }
 
 double viterbi(int* ObservationState, int T, int* q)
-{
+{/*
     for (int t=0; t<T; ++t)
         for (int j=0; j<N; ++j)
             if (t == 0)
@@ -80,16 +79,16 @@ double viterbi(int* ObservationState, int T, int* q)
                 }
                 delta[t][j] = p * b[j][ObservationState[t]];
             }
- 
+
     double p = -1e9;
     for (int j=0; j<N; ++j)
         if (delta[T-1][j] > p)
             p = delta[T-1][j], q[T-1] = j;
- 
+
     for (int t=T-1; t>0; --t)
         q[t-1] = psi[t][q[t]];
- 
-    return p;
+
+    return p;*/
 }
 
 double HMM(){
