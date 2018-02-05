@@ -30,7 +30,7 @@ numGaussSGMM=9000
 feats_nj=4
 train_nj=4
 decode_nj=5
-stage=11
+stage=1
 
 echo ============================================================================
 echo "                Data & Lexicon & Language Preparation                     "
@@ -61,14 +61,18 @@ if [ $stage -le 1 ]; then
     # Now make MFCC features.
     mfccdir=mfcc
 
-
     for x in train dev test; do 
       steps/make_mfcc.sh --cmd "$train_cmd" --nj $feats_nj data/$x exp/make_mfcc/$x $mfccdir
       steps/compute_cmvn_stats.sh data/$x exp/make_mfcc/$x $mfccdir
     done
 
+    fbankdir=fbank
+    for x in train dev test; do 
+      steps/make_fbank.sh --cmd "$train_cmd" --nj $feats_nj data-fbank/$x exp/make_fbank/$x $fbankdir
+      steps/compute_cmvn_stats.sh data-fbank/$x exp/make_fbank/$x $fbankdir
+    done
 fi
-
+<<WORD
 echo ============================================================================
 echo "                     MonoPhone Training & Decoding                        "
 echo ============================================================================
@@ -263,6 +267,7 @@ if [ $stage -le 11 ]; then
     bash RESULTS dev
     bash RESULTS test
 fi
+WORD
 
 echo ============================================================================
 echo "Finished successfully on" `date`

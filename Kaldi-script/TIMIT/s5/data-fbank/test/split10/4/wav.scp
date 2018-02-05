@@ -1,0 +1,16 @@
+MBPM0_SI1577 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR5/MBPM0/SI1577.WAV |
+MBPM0_SI1584 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR5/MBPM0/SI1584.WAV |
+MBPM0_SI947 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR5/MBPM0/SI947.WAV |
+MBPM0_SX137 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR5/MBPM0/SX137.WAV |
+MBPM0_SX227 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR5/MBPM0/SX227.WAV |
+MBPM0_SX317 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR5/MBPM0/SX317.WAV |
+MBPM0_SX407 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR5/MBPM0/SX407.WAV |
+MBPM0_SX47 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR5/MBPM0/SX47.WAV |
+MCMJ0_SI1094 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR6/MCMJ0/SI1094.WAV |
+MCMJ0_SI464 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR6/MCMJ0/SI464.WAV |
+MCMJ0_SI602 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR6/MCMJ0/SI602.WAV |
+MCMJ0_SX104 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR6/MCMJ0/SX104.WAV |
+MCMJ0_SX14 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR6/MCMJ0/SX14.WAV |
+MCMJ0_SX194 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR6/MCMJ0/SX194.WAV |
+MCMJ0_SX284 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR6/MCMJ0/SX284.WAV |
+MCMJ0_SX374 /usr/local/kaldi/tools/sph2pipe_v2.5/sph2pipe -f wav /share/corpus/TIMIT/TEST/DR6/MCMJ0/SX374.WAV |
