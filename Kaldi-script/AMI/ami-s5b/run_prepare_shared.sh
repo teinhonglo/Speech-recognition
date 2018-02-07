@@ -3,35 +3,23 @@
 . ./cmd.sh
 . ./path.sh
 
-# To run this script you need SRILM,
-
 # Path to Fisher transcripts LM interpolation (if not defined only AMI transcript LM is built),
-#FISHER_TRANS=`pwd`/eddie_data/lm/data/fisher/part1 # Edinburgh, [DEFAULT]
-FISHER_TRANS=data/fisherlm
-# Path where AMI gets downloaded (or where locally available),
-AMI_DIR=/share/corpus/amicorpus # [DEFAULT]
-
-# We can make setup specific to the 'domain' where the cluster is,
-case "$(hostname -d)" in
-  fit.vutbr.cz) # BUT cluster,
-    FISHER_TRANS=/mnt/matylda2/sdata/FISHER/fe_03_p1_tran
-    AMI_DIR=$(mktemp -d $(find /mnt/scratch*/$USER -maxdepth 0)/kaldi_ami_data_XXXXXX)
-  ;;
-  *) echo "Using defaults locations,"
-  ;;
+<<WORD
+case $(hostname -d) in
+  fit.vutbr.cz) FISHER_TRANS=/mnt/matylda2/data/FISHER/fe_03_p1_tran ;; # BUT,
+  clsp.jhu.edu) FISHER_TRANS=/export/corpora4/ami/fisher_trans/part1 ;; # JHU,
+  cstr.ed.ac.uk) FISHER_TRANS=`pwd`/eddie_data/lm/data/fisher/part1 ;; # Edinburgh,
+  *) echo "Please modify the script to add your loaction of the Fisher transcripts, or modify this script."; exit 1;;
 esac
+WORD
 
-# We can override the automatic setup by : 
-# './run_prepare_shared.sh --AMI-DIR [dir] --FISHER-TRANS [dir]'
-. utils/parse_options.sh 
+# Or select manually,
+# FISHER_TRANS=...
+# Note: if you don't have the Fisher data, you can remove the --fisher $FISHER_TRANS
+# option to local/ami_train_lms.sh below, and remove the case statement above.
 
-# Load previous / store the new AMI_DIR location,
-[ -r conf/ami_dir ] && AMI_DIR=$(cat conf/ami_dir) || echo $AMI_DIR >conf/ami_dir 
+. utils/parse_options.sh
 
-if [ -z $IRSTLM ] ; then
-  export IRSTLM=$KALDI_ROOT/tools/irstlm/
-fi
-export PATH=${PATH}:$IRSTLM/bin
 if ! command -v prune-lm >/dev/null 2>&1 ; then
   echo "$0: Error: the IRSTLM is not available or compiled" >&2
   echo "$0: Error: We used to install it by default, but." >&2
@@ -41,26 +29,29 @@ if ! command -v prune-lm >/dev/null 2>&1 ; then
   exit 1
 fi
 
-# Set bash to 'debug' mode, it will exit on : 
-# -e 'error', -u 'undefined variable', -o ... 'error in pipeline', -x 'print commands',
-set -e
-set -u
-set -x
+if ! command -v ngram-count >/dev/null 2>&1 ; then
+  echo "$0: Error: the SRILM is not available or compiled" >&2
+  echo "$0: Error: To install it, go to $KALDI_ROOT/tools" >&2
+  echo "$0: Error: and run extras/install_srilm.sh" >&2
+  exit 1
+fi
 
-#local/ami_text_prep.sh $AMI_DIR
+# Set bash to 'debug' mode, it prints the commands (option '-x') and exits on :
+# -e 'error', -u 'undefined variable', -o pipefail 'error in pipeline',
+set -euxo pipefail
 
-#local/ami_prepare_dict.sh
+# Download of annotations, pre-processing,
+local/ami_text_prep.sh data/local/downloads
 
-#utils/prepare_lang.sh data/local/dict "<unk>" data/local/lang data/lang
+local/ami_prepare_dict.sh
+utils/prepare_lang.sh data/local/dict "<unk>" data/local/lang data/lang
 
-
-#local/ami_train_lms.sh --fisher $FISHER_TRANS data/local/annotations/train.txt data/local/annotations/dev.txt data/local/dict/lexicon.txt data/local/lm
 local/ami_train_lms.sh data/local/annotations/train.txt data/local/annotations/dev.txt data/local/dict/lexicon.txt data/local/lm
+
 final_lm=`cat data/local/lm/final_lm`
 LM=$final_lm.pr1-7
 prune-lm --threshold=1e-7 data/local/lm/$final_lm.gz /dev/stdout | gzip -c > data/local/lm/$LM.gz
 utils/format_lm.sh data/lang data/local/lm/$LM.gz data/local/dict/lexicon.txt data/lang_$LM
 
-echo "Done!"
+echo "Done"
 exit 0
-
