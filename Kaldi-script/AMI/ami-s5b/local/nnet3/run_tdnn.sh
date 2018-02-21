@@ -61,7 +61,7 @@ where "nvcc" is installed.
 EOF
 fi
 
-local/nnet3/run_ivector_common.sh --stage $stage \
+local/nnet3/run_ivector_common.sh --stage 6 \
                                   --mic $mic \
                                   --nj $nj \
                                   --min-seg-len $min_seg_len \

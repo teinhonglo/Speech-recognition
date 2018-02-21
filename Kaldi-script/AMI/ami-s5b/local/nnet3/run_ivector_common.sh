@@ -7,7 +7,7 @@ set -e -o pipefail
 # be called by more scripts).  It contains the common feature preparation and iVector-related parts
 # of the script.  See those scripts for examples of usage.
 
-stage=4
+stage=0
 mic=ihm
 nj=30
 min_seg_len=1.55  # min length in seconds... we do this because chain training
@@ -17,7 +17,7 @@ train_set=train   # you might set this to e.g. train_cleaned.
 gmm=tri3          # This specifies a GMM-dir from the features of the type you're training the system on;
                   # it should contain alignments for 'train_set'.
 
-num_threads_ubm=32
+num_threads_ubm=8
 ivector_transform_type=lda
 nnet3_affix=_cleaned     # affix for exp/$mic/nnet3 directory to put iVector stuff in, so it
                          # becomes exp/$mic/nnet3_cleaned or whatever.

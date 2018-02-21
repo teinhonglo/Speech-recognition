@@ -13,7 +13,7 @@
 export train_cmd="queue.pl --config conf/queue_mod"
 export decode_cmd="queue.pl --config conf/queue_mod"
 # the use of cuda_cmd is deprecated, used only in 'nnet1',
-export cuda_cmd="queue.pl --config conf/queue_mod"
+export cuda_cmd="queue.pl --config conf/run_nv1080"
 
 if [[ "$(hostname -f)" == "*.fit.vutbr.cz" ]]; then
   queue_conf=$HOME/queue_conf/default.conf # see example /homes/kazi/iveselyk/queue_conf/default.conf,

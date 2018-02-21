@@ -23,7 +23,7 @@ use_ihm_ali=false
 train_set=train_cleaned
 gmm=tri3_cleaned  # the gmm for the target data
 ihm_gmm=tri3  # the gmm for the IHM system (if --use-ihm-ali true).
-num_threads_ubm=32
+num_threads_ubm=8
 ivector_transform_type=pca
 nnet3_affix=_cleaned  # cleanup affix for nnet3 and chain dirs, e.g. _cleaned
 
@@ -50,7 +50,7 @@ where "nvcc" is installed.
 EOF
 fi
 
-local/nnet3/run_ivector_common.sh --stage 4 \
+local/nnet3/run_ivector_common.sh --stage $stage \
                                   --mic $mic \
                                   --nj $nj \
                                   --min-seg-len $min_seg_len \
@@ -211,7 +211,7 @@ if [ $stage -le 16 ]; then
   fi
 
   steps/nnet3/chain/train.py --stage $train_stage \
-    --cmd "$decode_cmd" \
+    --cmd "$cuda_cmd" \
     --feat.online-ivector-dir $train_ivector_dir \
     --feat.cmvn-opts "--norm-means=false --norm-vars=false" \
     --chain.xent-regularize $xent_regularize \

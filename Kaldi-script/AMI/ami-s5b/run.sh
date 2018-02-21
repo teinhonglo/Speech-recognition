@@ -16,8 +16,10 @@
 mic=ihm
 
 # Train systems,
-nj=5 # number of parallel jobs,
-stage=11
+nj=30 # number of parallel jobs,
+stage=1
+nn_stage=0
+train_nn_stage=-10
 . utils/parse_options.sh
 
 base_mic=$(echo $mic | sed 's/[0-9]//g') # sdm, ihm or mdm
@@ -26,7 +28,7 @@ nmics=$(echo $mic | sed 's/[a-z]//g') # e.g. 8 for mdm8.
 set -euo pipefail
 
 # Path where AMI gets downloaded (or where locally available):
-AMI_DIR=/share/corpus/amicorpus # Default,
+AMI_DIR=/share/corpus/amicorpus2 # Default,
 case $(hostname -d) in
   fit.vutbr.cz) AMI_DIR=/mnt/scratch05/iveselyk/KALDI_AMI_WAV ;; # BUT,
   clsp.jhu.edu) AMI_DIR=/export/corpora4/ami/amicorpus ;; # JHU,
@@ -161,7 +163,7 @@ fi
 if [ $stage -le 11 ]; then
   ali_opt=
   [ "$mic" != "ihm" ] && ali_opt="--use-ihm-ali true"
-  local/chain/run_tdnn.sh $ali_opt --mic $mic
+  local/chain/run_tdnn.sh $ali_opt --mic $mic --stage $nn_stage --train_stage $train_nn_stage
 fi
 
 if [ $stage -le 12 ]; then
@@ -170,6 +172,7 @@ if [ $stage -le 12 ]; then
 #  ali_opt=
 #  [ "$mic" != "ihm" ] && ali_opt="--use-ihm-ali true"
 # local/nnet3/run_tdnn.sh $ali_opt --mic $mic
+  echo "Done"
 fi
 
 exit 0
