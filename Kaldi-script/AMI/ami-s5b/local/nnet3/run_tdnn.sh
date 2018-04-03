@@ -38,7 +38,7 @@ gmm=tri3_cleaned  # this is the source gmm-dir for the data-type of interest; it
                   # should have alignments for the specified training data.
 ihm_gmm=tri3      # Only relevant if $use_ihm_ali is true, the name of the gmm-dir in
                   # the ihm directory that is to be used for getting alignments.
-num_threads_ubm=32
+num_threads_ubm=8
 nnet3_affix=_cleaned  # cleanup affix for exp dirs, e.g. _cleaned
 tdnn_affix=  #affix for TDNN directory e.g. "a" or "b", in case we change the configuration.
 
@@ -61,7 +61,7 @@ where "nvcc" is installed.
 EOF
 fi
 
-local/nnet3/run_ivector_common.sh --stage 6 \
+local/nnet3/run_ivector_common.sh --stage $stage \
                                   --mic $mic \
                                   --nj $nj \
                                   --min-seg-len $min_seg_len \
@@ -115,7 +115,7 @@ if [ $stage -le 11 ]; then
     exit 1
   fi
   echo "$0: aligning perturbed, short-segment-combined ${maybe_ihm}data"
-  steps/align_fmllr.sh --nj $nj --cmd "$train_cmd" \
+  steps/align_fmllr.sh --nj $nj --cmd "$train_cmd --num_threads 8" \
          ${lores_train_data_dir} data/lang $gmm_dir $ali_dir
 fi
 

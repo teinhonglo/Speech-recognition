@@ -9,7 +9,7 @@
 # conf/queue.conf to match your queue's configuration.  Search for
 # conf/queue.conf in http://kaldi-asr.org/doc/queue.html for more information,
 # or search for the string 'default_config' in utils/queue.pl or utils/slurm.pl.
-
+#export train_cmd="run.pl"
 export train_cmd="queue.pl --config conf/queue_mod"
 export decode_cmd="queue.pl --config conf/queue_mod"
 # the use of cuda_cmd is deprecated, used only in 'nnet1',

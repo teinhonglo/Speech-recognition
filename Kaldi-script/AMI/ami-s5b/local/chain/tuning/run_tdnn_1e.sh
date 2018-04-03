@@ -105,7 +105,7 @@ if [ $stage -le 11 ]; then
     exit 1
   fi
   echo "$0: aligning perturbed, short-segment-combined ${maybe_ihm}data"
-  steps/align_fmllr.sh --nj $nj --cmd "$train_cmd" \
+  steps/align_fmllr.sh --nj $nj --cmd "$train_cmd" --stage 2\
      ${lores_train_data_dir} data/lang $gmm_dir $ali_dir
 fi
 
