@@ -49,6 +49,10 @@ remove_egs=true
 relu_dim=850
 num_epochs=3
 
+# set common_egs_dir to use previously dumped egs.
+common_egs_dir=
+srand=0
+
 . cmd.sh
 . ./path.sh
 . ./utils/parse_options.sh
@@ -122,25 +126,68 @@ fi
 [ ! -f $ali_dir/ali.1.gz ] && echo  "$0: expected $ali_dir/ali.1.gz to exist" && exit 1
 
 if [ $stage -le 12 ]; then
+  mkdir -p $dir
+  echo "$0: creating neural net configs using the xconfig parser";
+
+  num_targets=$(tree-info $gmm_dir/tree |grep num-pdfs|awk '{print $2}')
+
+  mkdir -p $dir/configs
+  cat <<EOF > $dir/configs/network.xconfig
+  input dim=100 name=ivector
+  input dim=40 name=input
+
+  # please note that it is important to have input layer with the name=input
+  # as the layer immediately preceding the fixed-affine-layer to enable
+  # the use of short notation for the descriptor
+  fixed-affine-layer name=lda input=Append(-2,-1,0,1,2,ReplaceIndex(ivector, t, 0)) affine-transform-file=$dir/configs/lda.mat
+
+  # the first splicing is moved before the lda layer, so no splicing here
+  relu-batchnorm-layer name=tdnn1 dim=$relu_dim
+  relu-batchnorm-layer name=tdnn2 dim=$relu_dim input=Append(-1,0,1)
+  relu-batchnorm-layer name=tdnn3 dim=$relu_dim input=Append(-1,0,1)
+  relu-batchnorm-layer name=tdnn4 dim=$relu_dim input=Append(-3,0,3)
+  relu-batchnorm-layer name=tdnn5 dim=$relu_dim input=Append(-6,-3,0)
+  output-layer name=output dim=$num_targets max-change=1.5
+EOF
+
+# count space-separated fields in splice_indexes to get num-hidden-layers.
+# splice_indexes="-2,-1,0,1,2 -1,2 -3,3 -7,2 -3,3 0 0"
+# Format : layer<hidden_layer>/<frame_indices>....layer<hidden_layer>/<frame_indices> "
+# note: hidden layers which are composed of one or more components,
+# so hidden layer indexing is different from component count
+  steps/nnet3/xconfig_to_configs.py --xconfig-file $dir/configs/network.xconfig --config-dir $dir/configs/
+fi
+
+if [ $stage -le 13 ]; then
   if [[ $(hostname -f) == *.clsp.jhu.edu ]] && [ ! -d $dir/egs/storage ]; then
+	echo "split"
     utils/create_split_dir.pl \
      /export/b0{3,4,5,6}/$USER/kaldi-data/egs/ami-$(date +'%m_%d_%H_%M')/s5b/$dir/egs/storage $dir/egs/storage
   fi
-
-  steps/nnet3/tdnn/train.sh --stage $train_stage \
-    --num-epochs $num_epochs --num-jobs-initial 2 --num-jobs-final 12 \
-    --splice-indexes "$splice_indexes" \
-    --feat-type raw \
-    --online-ivector-dir ${train_ivector_dir} \
-    --cmvn-opts "--norm-means=false --norm-vars=false" \
-    --initial-effective-lrate 0.0015 --final-effective-lrate 0.00015 \
-    --cmd "$decode_cmd" \
-    --relu-dim "$relu_dim" \
-    --remove-egs "$remove_egs" \
-    $train_data_dir data/lang $ali_dir $dir
+	
+	steps/nnet3/train_dnn.py --stage=$train_stage \
+    --cmd="$cuda_cmd" \
+    --feat.online-ivector-dir=$train_ivector_dir \
+    --feat.cmvn-opts="--norm-means=false --norm-vars=false" \
+    --trainer.srand=$srand \
+    --trainer.max-param-change=2.0 \
+    --trainer.num-epochs=$num_epochs \
+    --trainer.samples-per-iter=400000 \
+    --trainer.optimization.num-jobs-initial=2 \
+    --trainer.optimization.num-jobs-final=10 \
+    --trainer.optimization.initial-effective-lrate=0.0015 \
+    --trainer.optimization.final-effective-lrate=0.00015 \
+    --trainer.optimization.minibatch-size=512,128 \
+    --egs.dir="$common_egs_dir" \
+    --cleanup.remove-egs=$remove_egs \
+    --use-gpu=true \
+    --feat-dir=$train_data_dir \
+    --ali-dir=$ali_dir \
+    --lang=data/lang \
+    --dir=$dir  || exit 1;
 fi
 
-if [ $stage -le 12 ]; then
+if [ $stage -le 14 ]; then
   rm $dir/.error || true 2>/dev/null
   for decode_set in dev eval; do
       (
