@@ -175,4 +175,10 @@ if [ $stage -le 12 ]; then
   echo "Done"
 fi
 
+if [ $stage -le 13 ]; then
+  # getting results (see RESULTS file)
+  for x in exp/$mic/*/*/decode_dev; do grep Sum $x/*scor*/*ys | utils/best_wer.sh; done
+  for x in exp/$mic/*/*/decode_eval; do grep Sum $x/*scor*/*ys | utils/best_wer.sh; done
+fi
+
 exit 0
