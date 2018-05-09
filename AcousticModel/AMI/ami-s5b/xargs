@@ -1,0 +1,56 @@
+nnet3-chain-train grep help 
+
+Train nnet3+chain neural network parameters with backprop and stochastic
+gradient descent.  Minibatches are to be created by nnet3-chain-merge-egs in
+the input pipeline.  This training program is single-threaded (best to
+use it with a GPU).
+
+Usage:  nnet3-chain-train [options] <raw-nnet-in> <denominator-fst-in> <chain-training-examples-in> <raw-nnet-out>
+
+nnet3-chain-train 1.raw den.fst 'ark:nnet3-merge-egs 1.cegs ark:-|' 2.raw
+
+Options:
+  --apply-deriv-weights       : If true, apply the per-frame derivative weights stored with the example (bool, default = true)
+  --backstitch-training-interval : do backstitch training with the specified interval of minibatches. It is referred as 'n' in our publications. (int, default = 1)
+  --backstitch-training-scale : backstitch training factor. if 0 then in the normal training mode. It is referred as '\alpha' in our publications. (float, default = 0)
+  --binary                    : Write output in binary mode (bool, default = true)
+  --binary-write-cache        : Write computation cache in binary mode (bool, default = true)
+  --compiler.cache-capacity   : Determines how many computations the computation-cache will store (most-recently-used). (int, default = 64)
+  --compiler.use-shortcut     : If true, use the 'shortcut' in compilation whereby computation requests with regular structure are identified as such, a computation with a smaller number of distinct values of 'n' is compiled (e.g. 2), and the compiled computation is expanded to match the size of the real computation request. (bool, default = true)
+  --computation.debug         : If true, turn on debug for the neural net computation (very verbose!) Will be turned on regardless if --verbose >= 5 (bool, default = false)
+  --l2-regularize             : l2 regularization constant for 'chain' training, applied to the output of the neural net. (float, default = 0)
+  --leaky-hmm-coefficient     : Coefficient that allows transitions from each HMM state to each other HMM state, to ensure gradual forgetting of context (can improve generalization).  For numerical reasons, may not be exactly zero. (float, default = 1e-05)
+  --max-param-change          : The maximum change in parameters allowed per minibatch, measured in Euclidean norm over the entire model (change will be clipped to this value) (float, default = 2)
+  --momentum                  : momentum constant to apply during training (help stabilize update).  e.g. 0.9.  Note: we automatically multiply the learning rate by (1-momenum) so that the 'effective' learning rate is the same as before (because momentum would normally increase the effective learning rate by 1/(1-momentum)) (float, default = 0)
+  --optimization.allocate-from-other : Instead of deleting a matrix of a given size and then allocating a matrix of the same size, allow re-use of that memory (bool, default = true)
+  --optimization.allow-left-merge : Set to false to disable left-merging of variables in remove-assignments (obscure option) (bool, default = true)
+  --optimization.allow-right-merge : Set to false to disable right-merging of variables in remove-assignments (obscure option) (bool, default = true)
+  --optimization.backprop-in-place : Set to false to disable optimization that allows in-place backprop (bool, default = true)
+  --optimization.consolidate-model-update : Set to false to disable optimization that consolidates the model-update phase of backprop (e.g. for recurrent architectures (bool, default = true)
+  --optimization.convert-addition : Set to false to disable the optimization that converts Add commands into Copy commands wherever possible. (bool, default = true)
+  --optimization.initialize-undefined : Set to false to disable optimization that avoids redundant zeroing (bool, default = true)
+  --optimization.max-deriv-time : You can set this to the maximum t value that you want derivatives to be computed at when updating the model.  This is an optimization that saves time in the backprop phase for recurrent frameworks (int, default = 2147483647)
+  --optimization.max-deriv-time-relative : An alternative mechanism for setting the --max-deriv-time, suitable for situations where the length of the egs is variable.  If set, it is equivalent to setting the --max-deriv-time to this value plus the largest 't' value in any 'output' node of the computation request. (int, default = 2147483647)
+  --optimization.min-deriv-time : You can set this to the minimum t value that you want derivatives to be computed at when updating the model.  This is an optimization that saves time in the backprop phase for recurrent frameworks (int, default = -2147483648)
+  --optimization.move-sizing-commands : Set to false to disable optimization that moves matrix allocation and deallocation commands to conserve memory. (bool, default = true)
+  --optimization.optimize     : Set this to false to turn off all optimizations (bool, default = true)
+  --optimization.optimize-row-ops : Set to false to disable certain optimizations that act on operations of type *Row*. (bool, default = true)
+  --optimization.propagate-in-place : Set to false to disable optimization that allows in-place propagation (bool, default = true)
+  --optimization.remove-assignments : Set to false to disable optimization that removes redundant assignments (bool, default = true)
+  --optimization.snip-row-ops : Set this to false to disable an optimization that reduces the size of certain per-row operations (bool, default = true)
+  --print-interval            : Interval (measured in minibatches) after which we print out objective function during training
+ (int, default = 100)
+  --read-cache                : the location where we can read the cached computation from (string, default = "")
+  --srand                     : Seed for random number generator  (int, default = 0)
+  --store-component-stats     : If true, store activations and derivatives for nonlinear components during training. (bool, default = true)
+  --use-gpu                   : yes|no|optional|wait, only has effect if compiled with CUDA (string, default = "yes")
+  --write-cache               : the location where we want to write the cached computation to (string, default = "")
+  --xent-regularize           : Cross-entropy regularization constant for 'chain' training.  If nonzero, the network is expected to have an output named 'output-xent', which should have a softmax as its final nonlinearity. (float, default = 0)
+  --zero-component-stats      : If both this and --store-component-stats are true, then the component stats are zeroed before training. (bool, default = true)
+
+Standard options:
+  --config                    : Configuration file to read (this option may be repeated) (string, default = "")
+  --help                      : Print out usage message (bool, default = false)
+  --print-args                : Print the command line arguments (to stderr) (bool, default = true)
+  --verbose                   : Verbose level (higher->more logging) (int, default = 0)
+

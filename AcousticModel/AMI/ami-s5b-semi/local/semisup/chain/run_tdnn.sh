@@ -1,0 +1,1 @@
+local/semisup/chain/tuning/run_tdnn_1b.sh

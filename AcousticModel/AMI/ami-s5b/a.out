@@ -1,0 +1,39 @@
+nnet3-chain-get-egs 
+
+Get frame-by-frame examples of data for nnet3+chain neural network
+training.  This involves breaking up utterances into pieces of a
+fixed size.  Input will come from chain-get-supervision.
+Note: if <normalization-fst> is not supplied the egs will not be
+ready for training; in that case they should later be processed
+with nnet3-chain-normalize-egs
+
+Usage:  nnet3-chain-get-egs [options] [<normalization-fst>] <features-rspecifier> <chain-supervision-rspecifier> <egs-wspecifier>
+
+An example [where $feats expands to the actual features]:
+chain-get-supervision [args] | \
+  nnet3-chain-get-egs --left-context=25 --right-context=9 --num-frames=20 dir/normalization.fst \
+  "$feats" ark,s,cs:- ark:cegs.1.ark
+Note: the --frame-subsampling-factor option must be the same as given to
+chain-get-supervision.
+
+Options:
+  --compress                  : If true, write egs with input features in compressed format (recommended).  Update: this is now only relevant if the features being read are un-compressed; if already compressed, we keep we same compressed format when dumping-egs. (bool, default = true)
+  --frame-subsampling-factor  : Used if the frame-rate of the output labels in the generated examples will be less than the frame-rate at the input (int, default = 1)
+  --ivectors                  : Alias for --online-ivectors option, for back compatibility (string, default = "")
+  --left-context              : Number of frames of left context of input features that are added to each example (int, default = 0)
+  --left-context-initial      : Number of frames of left context of input features that are added to each example at the start of the utterance (if <0, this defaults to the same as --left-context) (int, default = -1)
+  --length-tolerance          : Tolerance for difference in num-frames between feat and ivector matrices (int, default = 100)
+  --num-frames                : Number of frames with labels that each example contains (i.e. the left and right context are to be added to this).  May just be an integer (e.g. --num-frames=8), or a principal value followed by alternative values to be used at most once for each utterance to deal with odd-sized input, e.g. --num-frames=40,25,50 means that most of the time the number of frames will be 40, but to deal with odd-sized inputs we may also generate egs with these other sizes.  All these values will be rounded up to the closest multiple of --frame-subsampling-factor. (string, default = "1")
+  --num-frames-overlap        : Number of frames of overlap between adjacent eamples (applies to chunks of size equal to the primary [first-listed] --num-frames value... will be adjusted for different-sized chunks).  Advisory; will not be exactly enforced. (int, default = 0)
+  --online-ivector-period     : Number of frames between iVectors in matrices supplied to the --online-ivectors option (int, default = 1)
+  --online-ivectors           : Rspecifier of ivector features, as a matrix. (string, default = "")
+  --right-context             : Number of frames of right context of input features that are added to each example (int, default = 0)
+  --right-context-final       : Number of frames of right context of input features that are added to each example at the end of the utterance (if <0, this defaults to the same as --right-context) (int, default = -1)
+  --srand                     : Seed for random number generator  (int, default = 0)
+
+Standard options:
+  --config                    : Configuration file to read (this option may be repeated) (string, default = "")
+  --help                      : Print out usage message (bool, default = false)
+  --print-args                : Print the command line arguments (to stderr) (bool, default = true)
+  --verbose                   : Verbose level (higher->more logging) (int, default = 0)
+
