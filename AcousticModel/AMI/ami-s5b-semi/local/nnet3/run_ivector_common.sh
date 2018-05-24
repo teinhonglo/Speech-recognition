@@ -17,17 +17,17 @@ train_set=train   # you might set this to e.g. train_cleaned.
 gmm=tri3          # This specifies a GMM-dir from the features of the type you're training the system on;
                   # it should contain alignments for 'train_set'.
 
-num_threads_ubm=8
+num_threads_ubm=32
 ivector_transform_type=lda
-nnet3_affix=_cleaned     # affix for $exp_root/nnet3 directory to put iVector stuff in, so it
-                         # becomes $exp_root/nnet3_cleaned or whatever.
+nnet3_affix=_cleaned     # affix for exp/$mic/nnet3 directory to put iVector stuff in, so it
+                         # becomes exp/$mic/nnet3_cleaned or whatever.
 
-. cmd.sh
+. ./cmd.sh
 . ./path.sh
 . ./utils/parse_options.sh
 
-exp_root=exp/$mic
-gmmdir=$exp_root/${gmm}
+
+gmmdir=exp/${mic}/${gmm}
 
 
 for f in data/${mic}/${train_set}/feats.scp ; do
@@ -60,7 +60,7 @@ if [ $stage -le 2 ]; then
   # them overwrite each other.
   mfccdir=data/$mic/${train_set}_sp_hires/data
   if [[ $(hostname -f) == *.clsp.jhu.edu ]] && [ ! -d $mfccdir/storage ]; then
-    utils/create_split_dir.pl /export/b0{5,6,7,8}/$USER/kaldi-data/egs/ami-$mic-$(date +'%m_%d_%H_%M')/s5/$mfccdir/storage $mfccdir/storage
+    utils/create_split_dir.pl /export/b0{5,6,7,8}/$USER/kaldi-data/mfcc/ami-$mic-$(date +'%m_%d_%H_%M')/s5/$mfccdir/storage $mfccdir/storage
   fi
 
   for datadir in ${train_set}_sp dev eval; do
@@ -97,7 +97,7 @@ if [ $stage -le 4 ]; then
 
   # note, these data-dirs are temporary; we put them in a sub-directory
   # of the place where we'll make the alignments.
-  temp_data_root=$exp_root/nnet3${nnet3_affix}/tri5
+  temp_data_root=exp/$mic/nnet3${nnet3_affix}/tri5
   mkdir -p $temp_data_root
 
   utils/data/subset_data_dir.sh --utt-list data/${mic}/${train_set}/feats.scp \
@@ -117,16 +117,16 @@ if [ $stage -le 4 ]; then
         exit 1;
       fi
       echo "$0: training a system on the hires data for its LDA+MLLT transform, in order to produce the diagonal GMM."
-      if [ -e $exp_root/nnet3${nnet3_affix}/tri5/final.mdl ]; then
+      if [ -e exp/$mic/nnet3${nnet3_affix}/tri5/final.mdl ]; then
         # we don't want to overwrite old stuff, ask the user to delete it.
-        echo "$0: $exp_root/nnet3${nnet3_affix}/tri5/final.mdl already exists: "
+        echo "$0: exp/$mic/nnet3${nnet3_affix}/tri5/final.mdl already exists: "
         echo " ... please delete and then rerun, or use a later --stage option."
         exit 1;
       fi
       steps/train_lda_mllt.sh --cmd "$train_cmd" --num-iters 7 --mllt-iters "2 4 6" \
         --splice-opts "--left-context=3 --right-context=3" \
         3000 10000 $temp_data_root/${train_set}_hires data/lang \
-        $gmmdir $exp_root/nnet3${nnet3_affix}/tri5
+        $gmmdir exp/$mic/nnet3${nnet3_affix}/tri5
       ;;
     pca)
       echo "$0: computing a PCA transform from the hires data."
@@ -134,7 +134,7 @@ if [ $stage -le 4 ]; then
         --splice-opts "--left-context=3 --right-context=3" \
         --max-utts 10000 --subsample 2 \
         $temp_data_root/${train_set}_hires \
-        $exp_root/nnet3${nnet3_affix}/tri5
+        exp/$mic/nnet3${nnet3_affix}/tri5
       ;;
     *) echo "$0: invalid iVector transform type $ivector_transform_type" && exit 1;
   esac
@@ -143,8 +143,8 @@ fi
 if [ $stage -le 5 ]; then
   echo "$0: computing a subset of data to train the diagonal UBM."
 
-  mkdir -p $exp_root/nnet3${nnet3_affix}/diag_ubm
-  temp_data_root=$exp_root/nnet3${nnet3_affix}/diag_ubm
+  mkdir -p exp/$mic/nnet3${nnet3_affix}/diag_ubm
+  temp_data_root=exp/$mic/nnet3${nnet3_affix}/diag_ubm
 
   # train a diagonal UBM using a subset of about a quarter of the data
   # we don't use the _comb data for this as there is no need for compatibility with
@@ -161,7 +161,7 @@ if [ $stage -le 5 ]; then
     --num-frames 700000 \
     --num-threads $num_threads_ubm \
     ${temp_data_root}/${train_set}_sp_hires_subset 512 \
-    $exp_root/nnet3${nnet3_affix}/tri5 $exp_root/nnet3${nnet3_affix}/diag_ubm
+    exp/$mic/nnet3${nnet3_affix}/tri5 exp/$mic/nnet3${nnet3_affix}/diag_ubm
 fi
 
 if [ $stage -le 6 ]; then
@@ -169,17 +169,17 @@ if [ $stage -le 6 ]; then
   # can be sensitive to the amount of data.  The script defaults to an iVector dimension of
   # 100.
   echo "$0: training the iVector extractor"
-  steps/online/nnet2/train_ivector_extractor.sh --cmd "$train_cmd" --nj 10 --init_iter 0 --num_threads 8 --num_processes 1 \
-    data/$mic/${train_set}_sp_hires $exp_root/nnet3${nnet3_affix}/diag_ubm $exp_root/nnet3${nnet3_affix}/extractor || exit 1;
+  steps/online/nnet2/train_ivector_extractor.sh --cmd "$train_cmd" --nj 10 \
+    data/$mic/${train_set}_sp_hires exp/$mic/nnet3${nnet3_affix}/diag_ubm exp/$mic/nnet3${nnet3_affix}/extractor || exit 1;
 fi
 
 if [ $stage -le 7 ]; then
   # note, we don't encode the 'max2' in the name of the ivectordir even though
   # that's the data we extract the ivectors from, as it's still going to be
   # valid for the non-'max2' data, the utterance list is the same.
-  ivectordir=$exp_root/nnet3${nnet3_affix}/ivectors_${train_set}_sp_hires_comb
+  ivectordir=exp/$mic/nnet3${nnet3_affix}/ivectors_${train_set}_sp_hires_comb
   if [[ $(hostname -f) == *.clsp.jhu.edu ]] && [ ! -d $ivectordir/storage ]; then
-    utils/create_split_dir.pl /export/b0{5,6,7,8}/$USER/kaldi-data/egs/ami-$mic-$(date +'%m_%d_%H_%M')/s5/$ivectordir/storage $ivectordir/storage
+    utils/create_split_dir.pl /export/b0{5,6,7,8}/$USER/kaldi-data/ivectors/ami-$mic-$(date +'%m_%d_%H_%M')/s5/$ivectordir/storage $ivectordir/storage
   fi
   # We extract iVectors on the speed-perturbed training data after combining
   # short segments, which will be what we train the system on.  With
@@ -195,14 +195,14 @@ if [ $stage -le 7 ]; then
 
   steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj $nj \
     ${temp_data_root}/${train_set}_sp_hires_comb_max2 \
-    $exp_root/nnet3${nnet3_affix}/extractor $ivectordir
+    exp/$mic/nnet3${nnet3_affix}/extractor $ivectordir
 
   # Also extract iVectors for the test data, but in this case we don't need the speed
   # perturbation (sp) or small-segment concatenation (comb).
   for data in dev eval; do
     steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj "$nj" \
-      data/${mic}/${data}_hires $exp_root/nnet3${nnet3_affix}/extractor \
-      $exp_root/nnet3${nnet3_affix}/ivectors_${data}_hires
+      data/${mic}/${data}_hires exp/$mic/nnet3${nnet3_affix}/extractor \
+      exp/$mic/nnet3${nnet3_affix}/ivectors_${data}_hires
   done
 fi
 

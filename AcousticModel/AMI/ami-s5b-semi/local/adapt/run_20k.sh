@@ -26,7 +26,7 @@ mic=ihm
 train_sup_dir=train_sup
 train_unsup_dir=train_unsup80k
 semi_dir=semisup
-exp_root=exp/$mic/semisup_20k
+exp_root=exp/$mic/apapt_all
 data_root=data/$mic/$semi_dir
 
 final_lm=`cat data/local/lm/final_lm`
@@ -141,29 +141,23 @@ fi
 
 if [ $stage -le 6 ]; then
   echo "Train LM on data/train/text, but excluding the utterances"
-<<WORD
-  local/fisher_create_test_lang.sh \
-      --arpa-lm data/local/lm/ami.o3g.kn.pr1-7.gz \
-      --dir data/lang_test_poco
-WORD
-  mkdir -p data/local/pocolm_ex86k
+#  mkdir -p data/local/$mic/pocolm_ex250k
 
-  utils/filter_scp.pl --exclude $data_root/$train_unsup_dir/utt2spk \
-    data/$mic/train/text > data/local/pocolm_ex86k/text.tmp
+#  utils/filter_scp.pl --exclude data/$mic/$train_unsup_dir/utt2spk \
+#    data/train/text > data/local/$mic/pocolm_ex250k/text.tmp
 
-  if [ ! -f data/lang_test_poco_ex86k_big/G.carpa ]; then
-    local/fisher_train_lms_pocolm.sh \
-      --text data/local/pocolm_ex86k/text.tmp \
-      --dir data/local/pocolm_ex86k \
-	  --data_root $data_root
+#  if [ ! -f data/lang_test_poco_ex250k_big/G.carpa ]; then
+#    local/fisher_train_lms_pocolm.sh \
+#      --text data/local/$mic/pocolm_ex250k/text.tmp \
+#      --dir data/local/$mic/pocolm_ex250k
 
-    local/fisher_create_test_lang.sh \
-      --arpa-lm data/local/pocolm_ex86k/data/arpa/4gram_small.arpa.gz \
-      --dir data/lang_test_poco_ex86k
-    utils/build_const_arpa_lm.sh \
-      data/local/pocolm_ex86k/data/arpa/4gram_big.arpa.gz \
-      data/lang_test_poco_ex86k data/lang_test_poco_ex86k_big
-  fi  
+#    local/fisher_create_test_lang.sh \
+#      --arpa-lm data/local/$mic/pocolm_ex250k/data/arpa/4gram_small.arpa.gz \
+#      --dir data/lang_test_poco_ex250k
+#    utils/build_const_arpa_lm.sh \
+#      data/local/$mic/pocolm_ex250k/data/arpa/4gram_big.arpa.gz \
+#      data/lang_test_poco_ex250k data/lang_test_poco_ex250k_big
+#  fi  
 fi
 
 ###############################################################################
@@ -172,14 +166,14 @@ fi
 
 if [ $stage -le 7 ]; then
 echo "Prepare lang directories with UNK modeled using phone LM"
-  local/run_unk_model.sh || exit 1
-  for lang_dir in data/lang_test_poco_ex86k; do
-    rm -r ${lang_dir}_unk ${lang_dir}_unk_big 2>/dev/null || true
-    cp -rT data/lang_unk ${lang_dir}_unk
-    cp ${lang_dir}/G.fst ${lang_dir}_unk/G.fst
-    cp -rT data/lang_unk ${lang_dir}_unk_big
-    cp ${lang_dir}_big/G.carpa ${lang_dir}_unk_big/G.carpa;
-  done
+#  local/run_unk_model.sh || exit 1
+#  for lang_dir in data/lang_test_poco_ex250k; do
+#    rm -r ${lang_dir}_unk ${lang_dir}_unk_big 2>/dev/null || true
+#    cp -rT data/lang_unk ${lang_dir}_unk
+#    cp ${lang_dir}/G.fst ${lang_dir}_unk/G.fst
+#    cp -rT data/lang_unk ${lang_dir}_unk_big
+#    cp ${lang_dir}_big/G.carpa ${lang_dir}_unk_big/G.carpa;
+#  done
 fi
 
 ###############################################################################
@@ -194,13 +188,9 @@ fi
 if [ $stage -le 8 ]; then
   gmm_feat_dir=tri3
   lang=data/lang
-  local/run_cleanup_segmentation.sh --mic $mic --gmm $gmm_feat_dir --data_root $data_root --nj $nj \
-                                    --exp_root $exp_root --train_set semisup20k_80k --lang $lang 
-									
+  # --train_set $train_sup_dir
   local/run_cleanup_segmentation.sh --mic $mic --gmm $gmm_feat_dir --data_root $data_root --nj $nj \
                                     --exp_root $exp_root --train_set $train_sup_dir --lang $lang 
-									
-
 fi
 
 ###############################################################################
@@ -208,16 +198,17 @@ fi
 # Here we train i-vector extractor on combined supervised and unsupervised data
 ###############################################################################
 
-clean_affix=""
-gmm=tri3${clean_affix}
+cleaned_affix="_cleaned"
+
 if [ $stage -le 9 ]; then
-  local/semisup/chain/run_tdnn.sh \
-    --mic $mic \
-    --train-set ${train_sup_dir}${clean_affix} \
-    --nnet3-affix _semi20k_80k${clean_affix} \
-    --chain-affix _semi21k_80k${clean_affix} \
-    --gmm $gmm --exp-root $exp_root --data_root $data_root \
-	--ivector-train-set semisup20k_80k${clean_affix} --stage 0
+  local/$semi_dir/chain/run_tdnn.sh \
+    --mic $mic --stage 18\
+    --train-set $train_sup_dir \
+    --ivector-train-set semisup20k_80k \
+    --nnet3-affix _semi20k_80k	\
+	--cleaned-affix $cleaned_affix \
+    --gmm tri3 --exp-root $exp_root --data_root $data_root
+	exit 1
 fi
 
 ###############################################################################
@@ -227,33 +218,34 @@ fi
 ###############################################################################
 
 if [ $stage -le 10 ]; then
-  local/semisup/chain/run_tdnn_20k_semisupervised.sh \
+  local/$semi_dir/chain/run_tdnn_20k_semisupervised.sh \
     --mic $mic \
-    --supervised-set ${train_sup_dir}${clean_affix} \
-    --unsupervised-set ${train_unsup_dir}${clean_affix} \
-    --sup-chain-dir $exp_root/chain_semi20k_80k${clean_affix}/tdnn_1b_sp_bi \
-    --sup-lat-dir $exp_root/chain_semi20k_80k${clean_affix}/${gmm}_${train_sup_dir}${clean_affix}_sp_comb_lats \
-    --sup-tree-dir $exp_root/chain_semi20k_80k${clean_affix}/tree_bi_a \
-    --ivector-root-dir $exp_root/nnet3_semi20k_80k${clean_affix} \
-    --chain-affix _semi20k_80k${clean_affix} \
-	--data_root $data_root \
-    --exp-root $exp_root --stage 3
+    --supervised-set $train_sup_dir \
+    --unsupervised-set $train_unsup_dir \
+	--clean_affix $clean_affix
+    --sup-chain-dir $exp_root/chain_semi20k_80k/tdnn_1b_sp_bi \
+    --sup-lat-dir $exp_root/chain_semi20k_80k/${gmm}_${$train_sup_dir}_sp_comb_lats \
+    --sup-tree-dir $exp_root/chain_semi20k_80k/tree_bi_a \
+    --ivector-root-dir $exp_root/nnet3_semi20k_80k \
+    --chain-affix _semi20k_80k \
+	--data_root $data_root
+    --exp-root $exp_root 
 fi
 
 ###############################################################################
-# Oracle system trained on combined 88 hours including both supervised and 
+# Oracle system trained on combined 300 hours including both supervised and 
 # unsupervised sets. We use i-vector extractor, tree, and GMM trained
 # on only the supervised for fair comparison to semi-supervised experiments.
 ###############################################################################
 
 if [ $stage -le 11 ]; then
-  local/semisup/chain/run_tdnn.sh \
+  local/$semi_dir/chain/run_tdnn.sh \
     --mic $mic \
-    --train-set semisup20k_80k${clean_affix} \
-    --nnet3-affix _semi20k_80k${clean_affix} \
-    --common-treedir $exp_root/chain_semi20k_80k${clean_affix}/tree_bi_a \
-    --tdnn-affix 1a_oracle${clean_affix} --nj 100 \
-    --gmm $gmm --exp_root $exp_root --data_root $data_root --stage 12
-    #--stage 8 || exit 1
+    --train-set semisup20k_80k \
+    --nnet3-affix _semi20k_80k \
+    --common-treedir $exp_root/chain_semi20k_80k/tree_bi_a \
+    --tdnn-affix 1a_oracle --nj 100 \
+    --gmm tri3 --exp-root $exp_root --data_root $data_root \
+    --stage 9 || exit 1
 fi
 

@@ -29,7 +29,7 @@ nmics=$(echo $mic | sed 's/[a-z]//g') # e.g. 8 for mdm8.
 set -euo pipefail
 
 # Path where AMI gets downloaded (or where locally available):
-AMI_DIR=/share/corpus/amicorpus # Default,
+AMI_DIR=/share/corpus/amicorpus2 # Default,
 case $(hostname -d) in
   fit.vutbr.cz) AMI_DIR=/mnt/scratch05/iveselyk/KALDI_AMI_WAV ;; # BUT,
   clsp.jhu.edu) AMI_DIR=/export/corpora4/ami/amicorpus ;; # JHU,
@@ -179,11 +179,11 @@ fi
 if [ $stage -le 13 ]; then
    ali_opt=
   [ "$mic" != "ihm" ] && ali_opt="--use-ihm-ali true"
-#  Create supervised and unsupervised data subsets
+  # Create supervised and unsupervised data subsets
   num_utt=`cat data/$mic/train/text | wc -l`
   split_ratio=2
   train_utt=$(($num_utt*2/10))
-#  Supervised and unsupervised directory  
+  # Supervised and unsupervised directory  
   train_sup_dir=train_sup
   train_unsup_dir=train_unsup_$((($num_utt-$train_utt)/1000))k
   if [ -d data/$mic/semisup/$train_sup_dir ]; then
@@ -198,6 +198,23 @@ if [ $stage -le 13 ]; then
 fi
 
 if [ $stage -le 14 ]; then
+  exit 0
+  adapt_dir=adapt
+  dest_dir=
+  if [ -d data/$mic/$adapt_dir/$dest_dir ]; then
+    echo "$0, data/$mic/$adapt_dir/$dest_dir already exists. we don't recompute it. continue .."
+  else	
+    utils/copy_data_dir.sh data/$mic/train_cleaned_sp_hires_comb data/$mic/$adapt_dir/train_cleaned_sp_hires_comb
+	utils/copy_data_dir.sh data/$mic/train data/$mic/$adapt_dir/$train_sup_dirin
+	utils/copy_data_dir.sh data/$mic/dev data/$mic/$adapt_dir/$train_unsup_dir
+	cp -r exp/$mic/nnet3_cleaned exp/$mic/$adapt_dir/nnet3_cleaned
+	cp -r exp/$mic/chain_cleaned exp/$mic/$adapt_dir/chain_cleaned
+  fi
+   
+  local/$adapt_dir/run_20k.sh --mic $mic --train_sup_dir $train_sup_dir --train_unsup_dir $train_unsup_dir --semi_dir $adapt_dir --stage $semi_stage
+fi
+
+if [ $stage -le 15 ]; then
   # getting results
   for x in exp/$mic/*/*/decode_*; do grep Sum $x/*scor*/*ys | utils/best_wer.sh; done
   echo "Done"

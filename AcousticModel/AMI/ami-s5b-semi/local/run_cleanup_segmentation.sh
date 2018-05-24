@@ -109,6 +109,7 @@ if [ $stage -le 2 ] && [ $mic != "ihm" ]; then
   # training.
 
   # the following makes sure that e.g. data/sdm1/train_ihmdata exists.
+  # !!!!!!!!!!!!!! this script maybe remain some bug in semisup setup
   local/prepare_parallel_train_data.sh $mic
 
   padding=$(cat $dir/segment_end_padding)  # e.g. 0.02
@@ -141,9 +142,9 @@ if [ $stage -le 5 ]; then
   nj_eval=$(cat data/$mic/eval/spk2utt | wc -l)
 
   $decode_cmd $graph_dir/mkgraph.log \
-    utils/mkgraph.sh data/lang_$LM exp/$mic/${gmm}_${cleanup_affix} $graph_dir
+    utils/mkgraph.sh data/lang_$LM $exp_root/${gmm}_${cleanup_affix} $graph_dir
   steps/decode_fmllr.sh --nj $nj --cmd "$decode_cmd" --config conf/decode.conf \
-    $graph_dir data/$mic/dev exp/$mic/${gmm}_${cleanup_affix}/decode_dev_$LM
+    $graph_dir data/$mic/dev $exp_root/${gmm}_${cleanup_affix}/decode_dev_$LM
   steps/decode_fmllr.sh --nj $nj --cmd "$decode_cmd" --config conf/decode.conf \
     $graph_dir data/$mic/eval $exp_root/${gmm}_${cleanup_affix}/decode_eval_$LM
 fi

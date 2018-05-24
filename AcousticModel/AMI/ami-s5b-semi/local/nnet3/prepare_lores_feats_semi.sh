@@ -20,13 +20,13 @@ min_seg_len=1.55  # min length in seconds... we do this because chain training
 use_ihm_ali=false # If true, we use alignments from the IHM data (which is better..
                   # don't set this to true if $mic is set to ihm.)
 train_set=train   # you might set this to e.g. train_cleaned.
-
+data_root=data/$mic
 
 . cmd.sh
 . ./path.sh
 . ./utils/parse_options.sh
 
-data_root=data/$mic
+
 
 if $use_ihm_ali; then
   ihm_suffix=_ihmdata
@@ -47,20 +47,20 @@ for f in $data_root/${train_set}${ihm_suffix}/utt2spk; do
 done
 
 
-if [ -f $data_root/${train_set}${ihm_suffix}_sp/feats.scp ] && [ $stage -le 9 ]; then
+if [ -f $data_root/${train_set}${ihm_suffix}_sp/feats.scp ] && [ $stage -le 10 ]; then
   echo "$0: $feats already exists.  Refusing to overwrite the features "
   echo " to avoid wasting time.  Please remove the file and continue if you really mean this."
   exit 1;
 fi
 
 
-if [ $stage -le 8 ]; then
+if [ $stage -le 9 ]; then
   echo "$0: preparing directory for ${maybe_ihm}speed-perturbed data (for alignment)"
   utils/data/perturb_data_dir_speed_3way.sh \
-    $data_root/${train_set}${ihm_suffix} data/${mic}/${train_set}${ihm_suffix}_sp
+    $data_root/${train_set}${ihm_suffix} $data_root/${train_set}${ihm_suffix}_sp
 fi
 
-if [ $stage -le 9 ]; then
+if [ $stage -le 10 ]; then
   echo "$0: making MFCC features for speed-perturbed ${maybe_ihm}data"
   steps/make_mfcc.sh --nj $nj \
     --cmd "$train_cmd" $data_root/${train_set}${ihm_suffix}_sp
@@ -70,7 +70,7 @@ if [ $stage -le 9 ]; then
   utils/fix_data_dir.sh $data_root/${train_set}${ihm_suffix}_sp
 fi
 
-if [ $stage -le 10 ]; then
+if [ $stage -le 11 ]; then
   echo "$0: combining short segments of 13-dimensional speed-perturbed ${maybe_ihm}MFCC data"
   src=$data_root/${train_set}${ihm_suffix}_sp
   dest=$data_root/${train_set}${ihm_suffix}_sp_comb

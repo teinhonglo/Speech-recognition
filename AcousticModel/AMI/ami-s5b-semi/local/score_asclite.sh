@@ -123,6 +123,11 @@ if [ $stage -le 2 ]; then
       rm -r $ascore/${oname}.ctm.filt.alignments
       echo -n "LMWT:$LMWT "
     done
+	
+    $cmd LMWT=$min_lmwt:$max_lmwt $dir/scoring/log/best_path.LMWT.log \
+      lattice-best-path --lm-scale=LMWT --word-symbol-table=$lang/words.txt \
+       "ark:gunzip -c $dir/lat.*.gz|" ark,t:$dir/scoring/LMWT.tra || exit 1;
+
     echo done
   else
     $cmd LMWT=$min_lmwt:$max_lmwt $dir/ascoring/log/score.LMWT.log \
