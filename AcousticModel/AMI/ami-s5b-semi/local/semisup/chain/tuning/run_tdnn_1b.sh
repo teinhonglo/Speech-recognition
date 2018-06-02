@@ -61,7 +61,7 @@ where "nvcc" is installed.
 EOF
 fi
 
-lang=data/lang_chain_unk
+lang=data/lang_chain
 
 #if [ ! -z $ivector_train_set ]; then
 #   ivector_train_set=${ivector_train_set}${cleand_affix}
@@ -75,7 +75,7 @@ local/nnet3/run_ivector_common_semi.sh  --stage $stage \
                                            --nj $nj \
                                            --min-seg-len $min_seg_len \
                                            --train_set $train_set \
-										   --ivector-train-set "$ivector_train_set" \
+					                       --ivector-train-set "$ivector_train_set" \
                                            --gmm $gmm \
                                            --num-threads-ubm $num_threads_ubm \
                                            --nnet3-affix "$nnet3_affix" \
@@ -93,7 +93,7 @@ local/nnet3/prepare_lores_feats_semi.sh --stage $stage \
                                           --train_set $train_set										  
 										  
 if $use_ihm_ali; then
-  gmm_dir=exp/ihm/${ihm_gmm}
+  gmm_dir=$exp_root/${ihm_gmm}
   ali_dir=$exp_root/${ihm_gmm}_ali_${train_set}_sp_comb_ihmdata
   lores_train_data_dir=$data_root/${train_set}_ihmdata_sp_comb
   tree_dir=$exp_root/chain${chain_affix}/tree_${tree_affix}_ihmdata
@@ -132,7 +132,7 @@ if [ $stage -le 12 ]; then
   fi
   echo "$0: aligning perturbed, short-segment-combined ${maybe_ihm}data"
   steps/align_fmllr.sh --nj $nj --cmd "$train_cmd" \
-     ${lores_train_data_dir} data/lang_unk $gmm_dir $ali_dir
+     ${lores_train_data_dir} data/lang $gmm_dir $ali_dir
 fi
 
 [ ! -f $ali_dir/ali.1.gz ] && echo  "$0: expected $ali_dir/ali.1.gz to exist" && exit 1
@@ -142,16 +142,16 @@ if [ $stage -le 13 ]; then
   # Create a version of the lang/ directory that has one state per phone in the
   # topo file. [note, it really has two states.. the first one is only repeated
   # once, the second one has zero or more repeats.]
-  if [ $lang/L.fst -nt data/lang/L.fst ]; then
-    echo "$0: $lang already exists, not overwriting it; continuing"
-  else
-    echo "$0: $lang already exists and seems to be older than data/lang..."
-    #echo " ... not sure what to do.  Exiting."
-    #exit 1;
-  fi
+  #if [ $lang/L.fst -nt data/lang/L.fst ]; then
+  #  echo "$0: $lang already exists, not overwriting it; continuing"
+  #else
+  #  echo "$0: $lang already exists and seems to be older than data/lang..."
+  #  echo " ... not sure what to do.  Exiting."
+  #  exit 1;
+  #fi
   
   rm -rf $lang
-  cp -r data/lang_unk $lang	
+  cp -r data/lang $lang	
   #cp -r data/lang $lang
   silphonelist=$(cat $lang/phones/silence.csl) || exit 1;
   nonsilphonelist=$(cat $lang/phones/nonsilence.csl) || exit 1;
@@ -163,9 +163,8 @@ fi
 if [ $stage -le 14 ]; then
   # Get the alignments as lattices (gives the chain training more freedom).
   # use the same num-jobs as the alignments
-  steps/align_fmllr_lats.sh --nj $nj --cmd "$train_cmd  --num_threads 5" \
-							--generate-ali-from-lats true \
-							${lores_train_data_dir} data/lang_unk $gmm_dir $lat_dir
+  steps/align_fmllr_lats.sh --nj $nj --cmd "$train_cmd" \
+							${lores_train_data_dir} data/lang $gmm_dir $lat_dir
   # diff.
   # --generate-ali-from-lats true
   # data/lang_unk							
@@ -177,15 +176,16 @@ if [ $stage -le 15 ]; then
   # speed-perturbed data (local/nnet3/run_ivector_common.sh made them), so use
   # those.
   if [ -z "$common_treedir" ]; then
-	if [ -f $tree_dir/final.mdl ]; then
-	  echo "$0: $tree_dir/final.mdl already exists, refusing to overwrite it."
-	  #exit 1;
-	fi
+     
+	#if [ -f $tree_dir/final.mdl ]; then
+	#  echo "$0: $tree_dir/final.mdl already exists, refusing to overwrite it."
+	#  exit 1;
+	#fi
   
     steps/nnet3/chain/build_tree.sh --frame-subsampling-factor 3 \
       --context-opts "--context-width=2 --central-position=1" \
       --leftmost-questions-truncate -1 \
-      --cmd "$train_cmd" 4200 ${lores_train_data_dir} $lang $lat_dir $tree_dir
+      --cmd "$train_cmd" 4200 ${lores_train_data_dir} $lang $ali_dir $tree_dir
 	# diff. fisher $lat_dir, ami $ali_dir  
   else
     tree_dir=$common_treedir
@@ -292,7 +292,7 @@ if [ $stage -le 19 ]; then
   for decode_set in dev eval; do
       (
       steps/nnet3/decode.sh --acwt 1.0 --post-decode-acwt 10.0 \
-          --nj $nj --cmd "$decode_cmd --num_threads 4" \
+          --nj $nj --cmd "$decode_cmd --num-threads 2" --num-threads 4 \
           --online-ivector-dir $exp_root/nnet3${nnet3_affix}/ivectors_${decode_set}_hires \
           --scoring-opts "--min-lmwt 5 " \
          $graph_dir $data_root/${decode_set}_hires $dir/decode_${decode_set} || exit 1;
@@ -301,7 +301,7 @@ if [ $stage -le 19 ]; then
   wait
   if [ -f $dir/.error ]; then
     echo "$0: something went wrong in decoding"
-    exit 1
+    exit 1;
   fi
 fi
-exit 0
+exit 0;

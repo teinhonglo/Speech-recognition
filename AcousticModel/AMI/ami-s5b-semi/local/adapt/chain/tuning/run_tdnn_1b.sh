@@ -30,7 +30,7 @@ num_threads_ubm=8
 
 nnet3_affix=  # affix for nnet3 dir -- relates to i-vector used
 chain_affix=_1b  # affix for chain dir
-tree_affix=bi_a
+tree_affix=_a
 cleaned_affix=
 gmm=tri3  # Expect GMM model in $exp/$gmm for alignment
 
@@ -60,26 +60,22 @@ If you want to use GPUs (and have them), go to src/, and configure and make on a
 where "nvcc" is installed.
 EOF
 fi
-#lang=data/lang_chain_unk
-train_set=${train_set}${cleand_affix}
-nnet3_affix=${nnet3_affix}${cleand_affix}
-chain_affix=${chain_affix}${cleand_affix}
-gmm=${gmm}${cleaned_affix}
-lang=data/lang_chain
 
-if [ ! -z $ivector_train_set ]; then
-   ivector_train_set=${ivector_train_set}${cleand_affix}
-fi
+lang=data/lang_chain_unk
+
+#if [ ! -z $ivector_train_set ]; then
+#   ivector_train_set=${ivector_train_set}${cleand_affix}
+#fi
 
 # The iVector-extraction and feature-dumping parts are the same as the standard
 # nnet3 setup, and you can skip them by setting "--stage 8" if you have already
 # run those things.
-for datadir in $train_set $ivector_train_set; do
-    local/nnet3/run_ivector_common_semi.sh --stage $stage \
+local/nnet3/run_ivector_common_semi.sh  --stage $stage \
                                            --mic $mic \
                                            --nj $nj \
                                            --min-seg-len $min_seg_len \
-                                           --train_set $datadir \
+                                           --train_set $train_set \
+										   --ivector-train-set "$ivector_train_set" \
                                            --gmm $gmm \
                                            --num-threads-ubm $num_threads_ubm \
                                            --nnet3-affix "$nnet3_affix" \
@@ -87,23 +83,22 @@ for datadir in $train_set $ivector_train_set; do
                                            --data_root $data_root \
                                            --exp_root $exp_root
 
-  # Note: the first stage of the following script is stage 8.
-  local/nnet3/prepare_lores_feats_semi.sh --stage $stage \
+# Note: the first stage of the following script is stage 8.
+local/nnet3/prepare_lores_feats_semi.sh --stage $stage \
                                           --mic $mic \
                                           --nj $nj \
                                           --data_root $data_root \
                                           --min-seg-len $min_seg_len \
                                           --use-ihm-ali $use_ihm_ali \
-                                          --train_set $datadir
-done									   
-
+                                          --train_set $train_set										  
+										  
 if $use_ihm_ali; then
   gmm_dir=exp/ihm/${ihm_gmm}
   ali_dir=$exp_root/${ihm_gmm}_ali_${train_set}_sp_comb_ihmdata
   lores_train_data_dir=$data_root/${train_set}_ihmdata_sp_comb
-  tree_dir=$exp_root/chain${nnet3_affix}/tree_${tree_affix}_ihmdata
-  lat_dir=$exp_root/chain${nnet3_affix}/${gmm}_${train_set}_sp_comb_lats_ihmdata
-  dir=$exp_root/chain${nnet3_affix}/tdnn${tdnn_affix}_sp_ihmali
+  tree_dir=$exp_root/chain${chain_affix}/tree_${tree_affix}_ihmdata
+  lat_dir=$exp_root/chain${chain_affix}/${gmm}_${train_set}_sp_comb_lats_ihmdata
+  dir=$exp_root/chain${chain_affix}/tdnn${tdnn_affix}_sp_ihmali
   # note: the distinction between when we use the 'ihmdata' suffix versus
   # 'ihmali' is pretty arbitrary.
 else
@@ -112,11 +107,11 @@ else
   ali_dir=$exp_root/${gmm}_ali_${train_set}_sp_comb
   lores_train_data_dir=$data_root/${train_set}_sp_comb
   # tree_dir=$exp_root/chain${chain_affix}/tree_${tree_affix}
-  tree_dir=$exp_root/chain${nnet3_affix}/tree_bi${tree_affix}
+  tree_dir=$exp_root/chain${chain_affix}/tree_bi${tree_affix}
   # lat_dir=$exp_root/chain${chain_affix}/${gmm}_${train_set}_sp_unk_lats  # training lattices directory
-  lat_dir=$exp_root/chain${nnet3_affix}/${gmm}_${train_set}_sp_comb_lats
+  lat_dir=$exp_root/chain${chain_affix}/${gmm}_${train_set}_sp_comb_lats
   # dir=$exp_root/chain${chain_affix}/tdnn${tdnn_affix}_sp
-  dir=$exp_root/chain${nnet3_affix}/tdnn${tdnn_affix}_sp_bi
+  dir=$exp_root/chain${chain_affix}/tdnn${tdnn_affix}_sp_bi
 fi
 
 train_data_dir=$data_root/${train_set}_sp_hires_comb
@@ -124,7 +119,12 @@ train_ivector_dir=$exp_root/nnet3${nnet3_affix}/ivectors_${train_set}_sp_hires_c
 final_lm=`cat data/local/lm/final_lm`
 LM=$final_lm.pr1-7
 
-if [ $stage -le 11 ]; then
+for f in $gmm_dir/final.mdl $lores_train_data_dir/feats.scp \
+   $train_data_dir/feats.scp $train_ivector_dir/ivector_online.scp; do
+  [ ! -f $f ] && echo "$0: expected file $f to exist" && exit 1
+done
+
+if [ $stage -le 12 ]; then
   if [ -f $ali_dir/ali.1.gz ]; then
     echo "$0: alignments in $ali_dir appear to already exist.  Please either remove them "
     echo " ... or use a later --stage option."
@@ -132,60 +132,60 @@ if [ $stage -le 11 ]; then
   fi
   echo "$0: aligning perturbed, short-segment-combined ${maybe_ihm}data"
   steps/align_fmllr.sh --nj $nj --cmd "$train_cmd" \
-     ${lores_train_data_dir} data/lang $gmm_dir $ali_dir
+     ${lores_train_data_dir} data/lang_unk $gmm_dir $ali_dir
 fi
 
 [ ! -f $ali_dir/ali.1.gz ] && echo  "$0: expected $ali_dir/ali.1.gz to exist" && exit 1
 
-if [ $stage -le 12 ]; then
+if [ $stage -le 13 ]; then
   echo "$0: creating lang directory with one state per phone."
   # Create a version of the lang/ directory that has one state per phone in the
   # topo file. [note, it really has two states.. the first one is only repeated
   # once, the second one has zero or more repeats.]
-  if [ -d $lang ]; then
-    if [ $lang/L.fst -nt data/lang/L.fst ]; then
-      echo "$0: $lang already exists, not overwriting it; continuing"
-    else
-      echo "$0: $lang already exists and seems to be older than data/lang..."
-      echo " ... not sure what to do.  Exiting."
-      exit 1;
-    fi
+  if [ $lang/L.fst -nt data/lang/L.fst ]; then
+    echo "$0: $lang already exists, not overwriting it; continuing"
   else
-    #rm -rf $lang
-    #cp -r data/lang_unk $lang
-    cp -r data/lang $lang
-    silphonelist=$(cat $lang/phones/silence.csl) || exit 1;
-    nonsilphonelist=$(cat $lang/phones/nonsilence.csl) || exit 1;
-    # Use our special topology... note that later on may have to tune this
-    # topology.
-    steps/nnet3/chain/gen_topo.py $nonsilphonelist $silphonelist >$lang/topo
+    echo "$0: $lang already exists and seems to be older than data/lang..."
+    echo " ... not sure what to do.  Exiting."
+    exit 1;
   fi
+  
+  rm -rf $lang
+  cp -r data/lang_unk $lang	
+  #cp -r data/lang $lang
+  silphonelist=$(cat $lang/phones/silence.csl) || exit 1;
+  nonsilphonelist=$(cat $lang/phones/nonsilence.csl) || exit 1;
+  # Use our special topology... note that later on may have to tune this
+  # topology.
+  steps/nnet3/chain/gen_topo.py $nonsilphonelist $silphonelist >$lang/topo
 fi
 
-if [ $stage -le 13 ]; then
+if [ $stage -le 14 ]; then
   # Get the alignments as lattices (gives the chain training more freedom).
   # use the same num-jobs as the alignments
   steps/align_fmllr_lats.sh --nj $nj --cmd "$train_cmd  --num_threads 5" \
-							${lores_train_data_dir} data/lang $gmm_dir $lat_dir
+							${lores_train_data_dir} data/lang_unk $gmm_dir $lat_dir
   # diff.
   # --generate-ali-from-lats true
   # data/lang_unk							
   rm $lat_dir/fsts.*.gz # save space
 fi
 
-if [ $stage -le 14 ]; then
+if [ $stage -le 15 ]; then
   # Build a tree using our new topology.  We know we have alignments for the
   # speed-perturbed data (local/nnet3/run_ivector_common.sh made them), so use
   # those.
-  if [ -f $tree_dir/final.mdl ]; then
-    echo "$0: $tree_dir/final.mdl already exists, refusing to overwrite it."
-    exit 1;
-  fi
   if [ -z "$common_treedir" ]; then
+	if [ -f $tree_dir/final.mdl ]; then
+	  echo "$0: $tree_dir/final.mdl already exists, refusing to overwrite it."
+	  exit 1;
+	fi
+  
     steps/nnet3/chain/build_tree.sh --frame-subsampling-factor 3 \
       --context-opts "--context-width=2 --central-position=1" \
       --leftmost-questions-truncate -1 \
       --cmd "$train_cmd" 4200 ${lores_train_data_dir} $lang $ali_dir $tree_dir
+	# diff. fisher $lat_dir, ami $ali_dir  
   else
     tree_dir=$common_treedir
   fi	  
@@ -193,7 +193,7 @@ fi
 
 xent_regularize=0.1
 
-if [ $stage -le 15 ]; then
+if [ $stage -le 16 ]; then
   echo "$0: creating neural net configs using the xconfig parser";
 
   num_targets=$(tree-info $tree_dir/tree |grep num-pdfs|awk '{print $2}')
@@ -239,7 +239,7 @@ EOF
   steps/nnet3/xconfig_to_configs.py --xconfig-file $dir/configs/network.xconfig --config-dir $dir/configs/
 fi
 
-if [ $stage -le 16 ]; then
+if [ $stage -le 17 ]; then
   if [[ $(hostname -f) == *.clsp.jhu.edu ]] && [ ! -d $dir/egs/storage ]; then
     utils/create_split_dir.pl \
      /export/b0{5,6,7,8}/$USER/kaldi-data/egs/fisher_english-$(date +'%m_%d_%H_%M')/s5c/$dir/egs/storage $dir/egs/storage
@@ -275,23 +275,23 @@ if [ $stage -le 16 ]; then
     --dir $dir  || exit 1;	
 fi
 
-graph_dir=$dir/graph_${LM}
-# graph_dir=$dir/graph_poco_unk
-if [ $stage -le 17 ]; then
+#graph_dir=$dir/graph_${LM}
+graph_dir=$dir/graph_poco
+if [ $stage -le 18 ]; then
   # Note: it might appear that this data/lang_chain directory is mismatched, and it is as
   # far as the 'topo' is concerned, but this script doesn't read the 'topo' from
   # the lang directory.
   # diff.
   # utils/mkgraph.sh --self-loop-scale 1.0 data/lang_test_poco_unk $dir $graph_dir
-  utils/mkgraph.sh --self-loop-scale 1.0 data/lang_${LM} $dir $graph_dir
+  utils/mkgraph.sh --self-loop-scale 1.0 data/lang_test_poco $dir $graph_dir
 fi
 
-if [ $stage -le 18 ]; then
+if [ $stage -le 19 ]; then
   rm $dir/.error 2>/dev/null || true
   for decode_set in dev eval; do
       (
       steps/nnet3/decode.sh --acwt 1.0 --post-decode-acwt 10.0 \
-          --nj $nj --cmd "$decode_cmd" \
+          --nj $nj --cmd "$decode_cmd --num_threads 4" \
           --online-ivector-dir $exp_root/nnet3${nnet3_affix}/ivectors_${decode_set}_hires \
           --scoring-opts "--min-lmwt 5 " \
          $graph_dir $data_root/${decode_set}_hires $dir/decode_${decode_set} || exit 1;

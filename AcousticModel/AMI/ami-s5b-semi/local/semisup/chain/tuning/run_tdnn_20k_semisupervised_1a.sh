@@ -65,7 +65,7 @@ sup_tree_dir=$exp_root/chain_semi50k_100k_250k/tree_bi_a  # tree directory for s
 ivector_root_dir=$exp_root/nnet3_semi50k_100k_250k  # i-vector extractor root directory
 
 # Semi-supervised options
-supervision_weights=1.0,1.0   # Weights for supervised, unsupervised data egs.
+supervision_weights=1.5,1     # Weights for supervised, unsupervised data egs.
                               # Can be used to scale down the effect of unsupervised data
                               # by using a smaller scale for it e.g. 1.0,0.3
 lm_weights=3,2  # Weights on phone counts from supervised, unsupervised data for denominator FST creation
@@ -167,7 +167,7 @@ fi
 if [ $stage -le 4 ]; then
   echo "$0: getting the decoding lattices for the unsupervised subset using the chain model at: $sup_chain_dir"
   steps/nnet3/decode_semisup.sh --num-threads 4 --nj $nj --cmd "$decode_cmd" \
-            --acwt 1.0 --post-decode-acwt 10.0 --write-compact false --skip-scoring true \
+            --acwt 1.0 --post-decode-acwt 10.0 --write-compact false --skip-scoring false \
 			--online-ivector-dir $ivector_root_dir/ivectors_${unsupervised_set_perturbed}_hires_comb \
             --scoring-opts "--min-lmwt 10 --max-lmwt 10" --word-determinize false \
             $graphdir $data_root/${unsupervised_set_perturbed}_hires_comb $sup_chain_dir/decode_${unsupervised_set_perturbed}
@@ -431,7 +431,7 @@ if [ $stage -le 18 ]; then
       (
 	  #num_jobs=`cat $data_root/${decode_set}_hires/utt2spk|cut -d' ' -f2|sort -u|wc -l`
       steps/nnet3/decode.sh --acwt 1.0 --post-decode-acwt 10.0 \
-          --nj $nj --cmd "$decode_cmd --num_threads 4" \
+          --nj $nj --cmd "$decode_cmd --num-threads 2" --num-threads 4 \
           --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
           --scoring-opts "--min-lmwt 5 " \
          $test_graph_dir $data_root/${decode_set}_hires $dir/decode${test_graph_affix}_${decode_set} || exit 1;

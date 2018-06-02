@@ -154,6 +154,7 @@ fi
 
 # Extract i-vectors for the unsupervised data
 if [ $stage -le 3 ]; then
+
   utils/data/modify_speaker_info.sh --utts-per-spk-max 2 \
     data/${unsupervised_set_perturbed}_hires data/${unsupervised_set_perturbed}_max2_hires
 
