@@ -123,7 +123,6 @@ if [ $stage -le 2 ]; then
       rm -r $ascore/${oname}.ctm.filt.alignments
       echo -n "LMWT:$LMWT "
     done
-	
     echo done
   else
     $cmd LMWT=$min_lmwt:$max_lmwt $dir/ascoring/log/score.LMWT.log \

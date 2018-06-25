@@ -8,7 +8,6 @@ set -o pipefail
 
 # This is fisher chain recipe for training a model on a subset of around
 # 100-300 hours of supervised data.
-# This system uses phone LM to model UNK.
 # local/semisup/run_50k.sh and local/semisup/run_100k.sh show how to call this.
 
 # configs for 'chain'
@@ -46,6 +45,7 @@ common_treedir=   # if provided, will skip the tree building stage
 
 decode_iter=
 cleand_affix=
+comb_affix=_hires_comb
 # End configuration section.
 echo "$0 $@"  # Print the command line for logging
 
@@ -114,8 +114,8 @@ else
   dir=$exp_root/chain${chain_affix}/tdnn${tdnn_affix}_sp_bi
 fi
 
-train_data_dir=$data_root/${train_set}_sp_hires_comb
-train_ivector_dir=$exp_root/nnet3${nnet3_affix}/ivectors_${train_set}_sp_hires_comb
+train_data_dir=$data_root/${train_set}_sp${comb_affix}
+train_ivector_dir=$exp_root/nnet3${nnet3_affix}/ivectors_${train_set}_sp${comb_affix}
 final_lm=`cat data/local/lm/final_lm`
 LM=$final_lm.pr1-7
 
@@ -138,6 +138,18 @@ fi
 [ ! -f $ali_dir/ali.1.gz ] && echo  "$0: expected $ali_dir/ali.1.gz to exist" && exit 1
 
 if [ $stage -le 13 ]; then
+  # Get the alignments as lattices (gives the chain training more freedom).
+  # use the same num-jobs as the alignments
+  steps/align_fmllr_lats.sh --nj $nj --cmd "$train_cmd" \
+							--generate-ali-from-lats true \
+							${lores_train_data_dir} data/lang $gmm_dir $lat_dir
+  # diff.
+  # --generate-ali-from-lats true
+  # data/lang_unk							
+  rm $lat_dir/fsts.*.gz # save space
+fi
+
+if [ $stage -le 14 ]; then
   echo "$0: creating lang directory with one state per phone."
   # Create a version of the lang/ directory that has one state per phone in the
   # topo file. [note, it really has two states.. the first one is only repeated
@@ -160,37 +172,27 @@ if [ $stage -le 13 ]; then
   steps/nnet3/chain/gen_topo.py $nonsilphonelist $silphonelist >$lang/topo
 fi
 
-if [ $stage -le 14 ]; then
-  # Get the alignments as lattices (gives the chain training more freedom).
-  # use the same num-jobs as the alignments
-  steps/align_fmllr_lats.sh --nj $nj --cmd "$train_cmd" \
-							${lores_train_data_dir} data/lang $gmm_dir $lat_dir
-  # diff.
-  # --generate-ali-from-lats true
-  # data/lang_unk							
-  rm $lat_dir/fsts.*.gz # save space
-fi
-
-if [ $stage -le 15 ]; then
-  # Build a tree using our new topology.  We know we have alignments for the
-  # speed-perturbed data (local/nnet3/run_ivector_common.sh made them), so use
-  # those.
-  if [ -z "$common_treedir" ]; then
-     
-	#if [ -f $tree_dir/final.mdl ]; then
-	#  echo "$0: $tree_dir/final.mdl already exists, refusing to overwrite it."
-	#  exit 1;
-	#fi
+if [ -z "$common_treedir" ]; then
+    if [ $stage -le 15 ]; then
+    # Build a tree using our new topology.  We know we have alignments for the
+    # speed-perturbed data (local/nnet3/run_ivector_common.sh made them), so use
+    # those.
+   
+	if [ -f $tree_dir/final.mdl ]; then
+	  echo "$0: $tree_dir/final.mdl already exists, refusing to overwrite it."
+	  exit 1;
+	fi
   
     steps/nnet3/chain/build_tree.sh --frame-subsampling-factor 3 \
       --context-opts "--context-width=2 --central-position=1" \
       --leftmost-questions-truncate -1 \
       --cmd "$train_cmd" 4200 ${lores_train_data_dir} $lang $ali_dir $tree_dir
 	# diff. fisher $lat_dir, ami $ali_dir  
-  else
+  
+	fi
+else
     tree_dir=$common_treedir
-  fi	  
-fi
+fi	  
 
 xent_regularize=0.1
 
@@ -295,7 +297,7 @@ if [ $stage -le 19 ]; then
           --nj $nj --cmd "$decode_cmd --num-threads 2" --num-threads 4 \
           --online-ivector-dir $exp_root/nnet3${nnet3_affix}/ivectors_${decode_set}_hires \
           --scoring-opts "--min-lmwt 5 " \
-         $graph_dir $data_root/${decode_set}_hires $dir/decode_${decode_set} || exit 1;
+         $graph_dir $data_root/${decode_set}_hires $dir/decode_${decode_set} || exit 1
       ) || touch $dir/.error &
   done
   wait
@@ -304,4 +306,5 @@ if [ $stage -le 19 ]; then
     exit 1;
   fi
 fi
+
 exit 0;

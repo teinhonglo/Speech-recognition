@@ -21,14 +21,14 @@ exp_root=exp/$mic/semisup_20k
 data_root=data/$mic/semisup
 
 nj=30
-tdnn_affix=_1a
+tdnn_affix=_1d
 train_set=train_sup
 ivector_train_set=   # dataset for training i-vector extractor
 ivector_transform_type=pca
 num_threads_ubm=8
 
 nnet3_affix=  # affix for nnet3 dir -- relates to i-vector used
-chain_affix=_1b  # affix for chain dir
+chain_affix=_1d  # affix for chain dir
 tree_affix=_a
 cleaned_affix=
 gmm=tri3  # Expect GMM model in $exp/$gmm for alignment
@@ -39,6 +39,8 @@ xent_regularize=0.1
 
 # training options
 num_epochs=4
+alpha=0.2
+back_interval=1
 remove_egs=false
 common_egs_dir=   # if provided, will skip egs generation
 common_treedir=   # if provided, will skip the tree building stage
@@ -263,7 +265,7 @@ if [ $stage -le 17 ]; then
     --egs.dir "$common_egs_dir" \
     --egs.opts "--frames-overlap-per-eg 0 --generate-egs-scp true" \
     --egs.chunk-width 150 \
-	--trainer.srand 1000 \
+	--trainer.srand 512 \
     --trainer.num-chunk-per-minibatch 128 \
     --trainer.frames-per-iter 1500000 \
     --trainer.num-epochs 4 \
@@ -271,7 +273,7 @@ if [ $stage -le 17 ]; then
     --trainer.optimization.num-jobs-final 12 \
     --trainer.optimization.initial-effective-lrate 0.001 \
     --trainer.optimization.final-effective-lrate 0.0001 \
-	--trainer.optimization.proportional-shrink 10 \
+    --trainer.optimization.proportional-shrink 10 \
     --trainer.max-param-change 2.0 \
     --cleanup.remove-egs false \
     --feat-dir $train_data_dir \

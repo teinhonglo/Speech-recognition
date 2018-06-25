@@ -51,7 +51,7 @@ data_root=data/$mic/semisup
 chain_affix=_semi20k_20k_80k    # affix for chain dir
                                   # 50 hour subset out of 100 hours of supervised data
                                   # 250 hour subset out of (1500-100=1400) hours of unsupervised data 
-tdnn_affix=_semisup_1a
+tdnn_affix=_semisup_1b
 
 # Datasets -- Expects data/$supervised_set and data/$unsupervised_set to be
 # present
@@ -339,15 +339,17 @@ fi
 unsup_frames_per_eg=150  # Using a frames-per-eg of 150 for unsupervised data
                          # was found to be better than allowing smaller chunks
                          # (160,140,110,80) like for supervised system
-lattice_lm_scale=0.5  # lm-scale for using the weights from unsupervised lattices when
+lattice_lm_scale=0  # lm-scale for using the weights from unsupervised lattices when
                       # creating numerator supervision
-lattice_prune_beam=4.0  # beam for pruning the lattices prior to getting egs
+lattice_prune_beam=0  # beam for pruning the lattices prior to getting egs
                         # for unsupervised data
 tolerance=1   # frame-tolerance for chain training
 
 unsup_lat_dir=${sup_chain_dir}/decode_${unsupervised_set_perturbed}_big
+phn_affix=_best_phn
+
 if [ -z "$unsup_egs_dir" ]; then
-  unsup_egs_dir=$dir/egs_${unsupervised_set_perturbed}
+  unsup_egs_dir=$dir/egs_${unsupervised_set_perturbed}${phn_affix}
 
   if [ $stage -le 13 ]; then
     if [[ $(hostname -f) == *.clsp.jhu.edu ]] && [ ! -d $unsup_egs_dir/storage ]; then
@@ -374,7 +376,7 @@ if [ -z "$unsup_egs_dir" ]; then
   fi
 fi
 
-comb_egs_dir=$dir/comb_egs
+comb_egs_dir=$dir/comb_egs${phn_affix}
 if [ $stage -le 14 ]; then
   steps/nnet3/chain/multilingual/combine_egs.sh --cmd "$train_cmd" \
     --block-size 128 \
@@ -400,6 +402,7 @@ if [ $stage -le 15 ]; then
     --chain.apply-deriv-weights true \
     --chain.lm-opts="--num-extra-lm-states=2000" \
     --egs.chunk-width $frames_per_eg \
+	--trainer.srand 1000 \
     --trainer.num-chunk-per-minibatch 128 \
     --trainer.frames-per-iter 1500000 \
     --trainer.num-epochs 4 \
@@ -408,14 +411,16 @@ if [ $stage -le 15 ]; then
     --trainer.optimization.initial-effective-lrate 0.001 \
     --trainer.optimization.final-effective-lrate 0.0001 \
     --trainer.max-param-change 2.0 \
+	--trainer.optimization.proportional-shrink 10 \
     --cleanup.remove-egs false \
     --feat-dir $data_root/${supervised_set_perturbed}_hires_comb \
     --tree-dir $sup_tree_dir \
     --lat-dir $sup_lat_dir \
     --dir $dir || exit 1;
 fi
-
+test_graph_affix=${test_graph_affix}${phn_affix}
 test_graph_dir=$dir/graph${test_graph_affix}
+
 if [ $stage -le 16 ]; then
   # Note: it might appear that this $lang directory is mismatched, and it is as
   # far as the 'topo' is concerned, but this script doesn't read the 'topo' from

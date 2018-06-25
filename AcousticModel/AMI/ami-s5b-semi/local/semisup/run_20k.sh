@@ -216,8 +216,9 @@ if [ $stage -le 9 ]; then
     --train-set ${train_sup_dir}${clean_affix} \
     --nnet3-affix _semi20k_80k${clean_affix} \
     --chain-affix _semi20k_80k${clean_affix} \
-    --gmm $gmm --exp-root $exp_root --data_root $data_root \
-	--ivector-train-set semisup20k_80k${clean_affix} --stage 17
+    --gmm $gmm --exp-root $exp_root --data-root $data_root \
+	--ivector-train-set semisup20k_80k${clean_affix} --stage 16 \
+	--common-egs-dir exp/ihm/semisup_20k/chain_semi20k_80k/tdnn_1a_sp_bi/egs
 fi
 
 ###############################################################################
@@ -231,13 +232,14 @@ if [ $stage -le 10 ]; then
     --mic $mic \
     --supervised-set ${train_sup_dir}${clean_affix} \
     --unsupervised-set ${train_unsup_dir}${clean_affix} \
-    --sup-chain-dir $exp_root/chain_semi20k_80k${clean_affix}/tdnn_1b_sp_bi \
+    --sup-chain-dir $exp_root/chain_semi20k_80k${clean_affix}/tdnn_1c_sp_bi \
     --sup-lat-dir $exp_root/chain_semi20k_80k${clean_affix}/${gmm}_${train_sup_dir}${clean_affix}_sp_comb_lats \
     --sup-tree-dir $exp_root/chain_semi20k_80k${clean_affix}/tree_bi_a \
     --ivector-root-dir $exp_root/nnet3_semi20k_80k${clean_affix} \
     --chain-affix _semi20k_80k${clean_affix} \
-	--data_root $data_root \
-    --exp-root $exp_root --stage 4
+	--data-root $data_root \
+    --exp-root $exp_root --stage 4 
+	exit 0;
 fi
 
 ###############################################################################
@@ -247,13 +249,13 @@ fi
 ###############################################################################
 
 if [ $stage -le 11 ]; then
-  #local/semisup/chain/run_tdnn.sh \
-  #  --mic $mic \
-  #  --train-set semisup20k_80k${clean_affix} \
-  #  --nnet3-affix _semi20k_80k${clean_affix} \
-  #  --common-treedir $exp_root/chain_semi20k_80k${clean_affix}/tree_bi_a \
-  #  --chain-affix _semi20k_80k${clean_affix} --tdnn-affix _1b_oracle${clean_affix} --nj 100 \
-  #  --gmm $gmm --exp_root $exp_root --data_root $data_root --stage 7
-  #  --stage 8 || exit 1
+  local/semisup/chain/run_tdnn.sh \
+    --mic $mic \
+    --train-set semisup20k_80k${clean_affix} \
+    --nnet3-affix _semi20k_80k${clean_affix} \
+    --common-treedir $exp_root/chain_semi20k_80k${clean_affix}/tree_bi_a \
+    --chain-affix _semi20k_80k${clean_affix} --tdnn-affix _1c_oracle${clean_affix} --nj 100 \
+    --gmm $gmm --exp_root $exp_root --data_root $data_root --stage 16 \
+	--common-egs-dir exp/ihm/semisup_20k/chain_semi20k_80k/tdnn_1a_oracle_sp_bi/egs
 fi
 

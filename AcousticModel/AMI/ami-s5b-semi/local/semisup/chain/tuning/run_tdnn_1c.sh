@@ -21,7 +21,7 @@ exp_root=exp/$mic/semisup_20k
 data_root=data/$mic/semisup
 
 nj=30
-tdnn_affix=_1a
+tdnn_affix=_1c
 train_set=train_sup
 ivector_train_set=   # dataset for training i-vector extractor
 ivector_transform_type=pca
@@ -135,7 +135,7 @@ if [ $stage -le 12 ]; then
      ${lores_train_data_dir} data/lang $gmm_dir $ali_dir
 fi
 
-#[ ! -f $ali_dir/ali.1.gz ] && echo  "$0: expected $ali_dir/ali.1.gz to exist" && exit 1
+# [ ! -f $ali_dir/ali.1.gz ] && echo  "$0: expected $ali_dir/ali.1.gz to exist" && exit 1
 
 if [ $stage -le 13 ]; then
   # Get the alignments as lattices (gives the chain training more freedom).
@@ -201,30 +201,30 @@ if [ $stage -le 16 ]; then
 
   num_targets=$(tree-info $tree_dir/tree |grep num-pdfs|awk '{print $2}')
   learning_rate_factor=$(echo "print 0.5/$xent_regularize" | python)
+  opts="l2-regularize=0.02"
+  output_opts="l2-regularize=0.004"
 
   mkdir -p $dir/configs
   cat <<EOF > $dir/configs/network.xconfig
   input dim=100 name=ivector
   input dim=40 name=input
-
   # please note that it is important to have input layer with the name=input
   # as the layer immediately preceding the fixed-affine-layer to enable
   # the use of short notation for the descriptor
   fixed-affine-layer name=lda input=Append(-1,0,1,ReplaceIndex(ivector, t, 0)) affine-transform-file=$dir/configs/lda.mat
-
   # the first splicing is moved before the lda layer, so no splicing here
-  relu-batchnorm-layer name=tdnn1 dim=450
-  relu-batchnorm-layer name=tdnn2 input=Append(-1,0,1) dim=450
-  relu-batchnorm-layer name=tdnn3 input=Append(-1,0,1) dim=450
-  relu-batchnorm-layer name=tdnn4 input=Append(-3,0,3) dim=450
-  relu-batchnorm-layer name=tdnn5 input=Append(-3,0,3) dim=450
-  relu-batchnorm-layer name=tdnn6 input=Append(-3,0,3) dim=450
-  relu-batchnorm-layer name=tdnn7 input=Append(-3,0,3) dim=450
+  relu-batchnorm-layer name=tdnn1 dim=450 $opts
+  relu-batchnorm-layer name=tdnn2 input=Append(-1,0,1) dim=450 $opts
+  relu-batchnorm-layer name=tdnn3 dim=450 $opts
+  relu-batchnorm-layer name=tdnn4 input=Append(-1,0,1) dim=450 $opts
+  relu-batchnorm-layer name=tdnn5 dim=450 $opts
+  relu-batchnorm-layer name=tdnn6 input=Append(-3,0,3) dim=450 $opts
+  relu-batchnorm-layer name=tdnn7 input=Append(-3,0,3) dim=450 $opts
 
   ## adding the layers for chain branch
-  relu-batchnorm-layer name=prefinal-chain input=tdnn7 dim=450 target-rms=0.5
-  output-layer name=output include-log-softmax=false dim=$num_targets max-change=1.5
-
+  relu-batchnorm-layer name=prefinal-chain input=tdnn7 dim=450 target-rms=0.5 $opts
+  output-layer name=output include-log-softmax=false dim=$num_targets max-change=1.5 $output_opts
+  
   # adding the layers for xent branch
   # This block prints the configs for a separate output that will be
   # trained with a cross-entropy objective in the 'chain' models... this
@@ -234,9 +234,8 @@ if [ $stage -le 16 ]; then
   # final-layer learns at a rate independent of the regularization
   # constant; and the 0.5 was tuned so as to make the relative progress
   # similar in the xent and regular final layers.
-  relu-batchnorm-layer name=prefinal-xent input=tdnn7 dim=450 target-rms=0.5
-  output-layer name=output-xent dim=$num_targets learning-rate-factor=$learning_rate_factor max-change=1.5
-
+  relu-batchnorm-layer name=prefinal-xent input=tdnn7 dim=450 target-rms=0.5 $opts
+  output-layer name=output-xent dim=$num_targets learning-rate-factor=$learning_rate_factor max-change=1.5 $output_opts
 EOF
 
   steps/nnet3/xconfig_to_configs.py --xconfig-file $dir/configs/network.xconfig --config-dir $dir/configs/
@@ -263,7 +262,7 @@ if [ $stage -le 17 ]; then
     --egs.dir "$common_egs_dir" \
     --egs.opts "--frames-overlap-per-eg 0 --generate-egs-scp true" \
     --egs.chunk-width 150 \
-	--trainer.srand 1000 \
+	--trainer.srand 256 \
     --trainer.num-chunk-per-minibatch 128 \
     --trainer.frames-per-iter 1500000 \
     --trainer.num-epochs 4 \
@@ -271,7 +270,6 @@ if [ $stage -le 17 ]; then
     --trainer.optimization.num-jobs-final 12 \
     --trainer.optimization.initial-effective-lrate 0.001 \
     --trainer.optimization.final-effective-lrate 0.0001 \
-	--trainer.optimization.proportional-shrink 10 \
     --trainer.max-param-change 2.0 \
     --cleanup.remove-egs false \
     --feat-dir $train_data_dir \

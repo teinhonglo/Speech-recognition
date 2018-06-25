@@ -1,0 +1,1 @@
+$decode_cmd JOB=1:30 test/log/decode.JOB.log lattice-combine --lat-weights=1.0:1.0 'ark:gunzip -c  exp/ihm/chain_cleaned/tdnn1e_sp_bi/decode_dev/lat.JOB.gz |' 'ark:gunzip -c  exp/ihm/chain_cleaned_lda/tdnn_lstm1l_sp_bi_ld5/decode_dev/lat.JOB.gz|' "ark:|gzip -c > test/lat.JOB.gz"

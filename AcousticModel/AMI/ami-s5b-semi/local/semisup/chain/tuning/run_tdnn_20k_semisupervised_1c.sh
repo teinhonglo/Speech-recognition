@@ -51,7 +51,7 @@ data_root=data/$mic/semisup
 chain_affix=_semi20k_20k_80k    # affix for chain dir
                                   # 50 hour subset out of 100 hours of supervised data
                                   # 250 hour subset out of (1500-100=1400) hours of unsupervised data 
-tdnn_affix=_semisup_1a
+tdnn_affix=_semisup_1c
 
 # Datasets -- Expects data/$supervised_set and data/$unsupervised_set to be
 # present
@@ -251,9 +251,10 @@ fi
 
 if [ $stage -le 11 ]; then
   echo "$0: creating neural net configs using the xconfig parser";
-
-  num_targets=$(tree-info $sup_tree_dir/tree |grep num-pdfs|awk '{print $2}')
+  num_targets=$(tree-info $sup_tree_dir/tree |grep num-pdfs|awk '{print $2}');
   learning_rate_factor=$(echo "print 0.5/$xent_regularize" | python)
+  opts="l2-regularize=0.02"
+  output_opts="l2-regularize=0.004"
 
   mkdir -p $dir/configs
   cat <<EOF > $dir/configs/network.xconfig
@@ -264,16 +265,17 @@ if [ $stage -le 11 ]; then
   # the use of short notation for the descriptor
   fixed-affine-layer name=lda input=Append(-1,0,1,ReplaceIndex(ivector, t, 0)) affine-transform-file=$dir/configs/lda.mat
   # the first splicing is moved before the lda layer, so no splicing here
-  relu-batchnorm-layer name=tdnn1 dim=450
-  relu-batchnorm-layer name=tdnn2 input=Append(-1,0,1) dim=450
-  relu-batchnorm-layer name=tdnn3 input=Append(-1,0,1) dim=450
-  relu-batchnorm-layer name=tdnn4 input=Append(-3,0,3) dim=450
-  relu-batchnorm-layer name=tdnn5 input=Append(-3,0,3) dim=450
-  relu-batchnorm-layer name=tdnn6 input=Append(-3,0,3) dim=450
-  relu-batchnorm-layer name=tdnn7 input=Append(-3,0,3) dim=450
+  relu-batchnorm-layer name=tdnn1 dim=450 $opts
+  relu-batchnorm-layer name=tdnn2 input=Append(-1,0,1) dim=450 $opts
+  relu-batchnorm-layer name=tdnn3 dim=450 $opts
+  relu-batchnorm-layer name=tdnn4 input=Append(-1,0,1) dim=450 $opts
+  relu-batchnorm-layer name=tdnn5 dim=450 $opts
+  relu-batchnorm-layer name=tdnn6 input=Append(-3,0,3) dim=450 $opts
+  relu-batchnorm-layer name=tdnn7 input=Append(-3,0,3) dim=450 $opts
+
   ## adding the layers for chain branch
-  relu-batchnorm-layer name=prefinal-chain input=tdnn7 dim=450 target-rms=0.5
-  output-layer name=output input=prefinal-chain include-log-softmax=false dim=$num_targets max-change=1.5
+  relu-batchnorm-layer name=prefinal-chain input=tdnn7 dim=450 target-rms=0.5 $opts
+  output-layer name=output include-log-softmax=false dim=$num_targets max-change=1.5 $output_opts
   
   # adding the layers for xent branch
   # This block prints the configs for a separate output that will be
@@ -284,13 +286,14 @@ if [ $stage -le 11 ]; then
   # final-layer learns at a rate independent of the regularization
   # constant; and the 0.5 was tuned so as to make the relative progress
   # similar in the xent and regular final layers.
-  relu-batchnorm-layer name=prefinal-xent input=tdnn7 dim=450 target-rms=0.5
-  output-layer name=output-xent dim=$num_targets learning-rate-factor=$learning_rate_factor max-change=1.5
+  relu-batchnorm-layer name=prefinal-xent input=tdnn7 dim=450 target-rms=0.5 $opts
+  output-layer name=output-xent dim=$num_targets learning-rate-factor=$learning_rate_factor max-change=1.5 $output_opts
   
   # We use separate outputs for supervised and unsupervised data
   # so we can properly track the train and valid objectives.
   output name=output-0 input=output.affine
   output name=output-1 input=output.affine
+  
   output name=output-0-xent input=output-xent.log-softmax
   output name=output-1-xent input=output-xent.log-softmax
 EOF
@@ -341,13 +344,15 @@ unsup_frames_per_eg=150  # Using a frames-per-eg of 150 for unsupervised data
                          # (160,140,110,80) like for supervised system
 lattice_lm_scale=0.5  # lm-scale for using the weights from unsupervised lattices when
                       # creating numerator supervision
-lattice_prune_beam=4.0  # beam for pruning the lattices prior to getting egs
+lattice_prune_beam=4  # beam for pruning the lattices prior to getting egs
                         # for unsupervised data
 tolerance=1   # frame-tolerance for chain training
 
 unsup_lat_dir=${sup_chain_dir}/decode_${unsupervised_set_perturbed}_big
+phn_affix=
+
 if [ -z "$unsup_egs_dir" ]; then
-  unsup_egs_dir=$dir/egs_${unsupervised_set_perturbed}
+  unsup_egs_dir=$dir/egs_${unsupervised_set_perturbed}${phn_affix}
 
   if [ $stage -le 13 ]; then
     if [[ $(hostname -f) == *.clsp.jhu.edu ]] && [ ! -d $unsup_egs_dir/storage ]; then
@@ -374,7 +379,7 @@ if [ -z "$unsup_egs_dir" ]; then
   fi
 fi
 
-comb_egs_dir=$dir/comb_egs
+comb_egs_dir=$dir/comb_egs${phn_affix}
 if [ $stage -le 14 ]; then
   steps/nnet3/chain/multilingual/combine_egs.sh --cmd "$train_cmd" \
     --block-size 128 \
@@ -400,6 +405,7 @@ if [ $stage -le 15 ]; then
     --chain.apply-deriv-weights true \
     --chain.lm-opts="--num-extra-lm-states=2000" \
     --egs.chunk-width $frames_per_eg \
+	--trainer.srand 256 \
     --trainer.num-chunk-per-minibatch 128 \
     --trainer.frames-per-iter 1500000 \
     --trainer.num-epochs 4 \
@@ -415,7 +421,9 @@ if [ $stage -le 15 ]; then
     --dir $dir || exit 1;
 fi
 
+test_graph_affix=${test_graph_affix}${phn_affix}
 test_graph_dir=$dir/graph${test_graph_affix}
+
 if [ $stage -le 16 ]; then
   # Note: it might appear that this $lang directory is mismatched, and it is as
   # far as the 'topo' is concerned, but this script doesn't read the 'topo' from

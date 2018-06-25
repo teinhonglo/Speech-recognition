@@ -51,7 +51,7 @@ data_root=data/$mic/semisup
 chain_affix=_semi20k_20k_80k    # affix for chain dir
                                   # 50 hour subset out of 100 hours of supervised data
                                   # 250 hour subset out of (1500-100=1400) hours of unsupervised data 
-tdnn_affix=_semisup_1a
+tdnn_affix=_semisup_1d
 
 # Datasets -- Expects data/$supervised_set and data/$unsupervised_set to be
 # present
@@ -76,6 +76,8 @@ unsup_egs_opts=  # Extra options to pass to unsupervised egs creation
 
 # Neural network opts
 xent_regularize=0.1
+alpha=0.2
+back_interval=1
 
 decode_iter=  # Iteration to decode with
 
@@ -346,8 +348,9 @@ lattice_prune_beam=4.0  # beam for pruning the lattices prior to getting egs
 tolerance=1   # frame-tolerance for chain training
 
 unsup_lat_dir=${sup_chain_dir}/decode_${unsupervised_set_perturbed}_big
+phn_affix=
 if [ -z "$unsup_egs_dir" ]; then
-  unsup_egs_dir=$dir/egs_${unsupervised_set_perturbed}
+  unsup_egs_dir=$dir/egs_${unsupervised_set_perturbed}${phn_affix}
 
   if [ $stage -le 13 ]; then
     if [[ $(hostname -f) == *.clsp.jhu.edu ]] && [ ! -d $unsup_egs_dir/storage ]; then
@@ -374,7 +377,7 @@ if [ -z "$unsup_egs_dir" ]; then
   fi
 fi
 
-comb_egs_dir=$dir/comb_egs
+comb_egs_dir=$dir/comb_egs${phn_affix}
 if [ $stage -le 14 ]; then
   steps/nnet3/chain/multilingual/combine_egs.sh --cmd "$train_cmd" \
     --block-size 128 \
@@ -400,6 +403,7 @@ if [ $stage -le 15 ]; then
     --chain.apply-deriv-weights true \
     --chain.lm-opts="--num-extra-lm-states=2000" \
     --egs.chunk-width $frames_per_eg \
+	--trainer.srand 512 \
     --trainer.num-chunk-per-minibatch 128 \
     --trainer.frames-per-iter 1500000 \
     --trainer.num-epochs 4 \
@@ -407,6 +411,7 @@ if [ $stage -le 15 ]; then
     --trainer.optimization.num-jobs-final 12 \
     --trainer.optimization.initial-effective-lrate 0.001 \
     --trainer.optimization.final-effective-lrate 0.0001 \
+	--trainer.optimization.proportional-shrink 10 \
     --trainer.max-param-change 2.0 \
     --cleanup.remove-egs false \
     --feat-dir $data_root/${supervised_set_perturbed}_hires_comb \
@@ -415,6 +420,7 @@ if [ $stage -le 15 ]; then
     --dir $dir || exit 1;
 fi
 
+test_graph_affix=${test_graph_affix}${phn_affix}
 test_graph_dir=$dir/graph${test_graph_affix}
 if [ $stage -le 16 ]; then
   # Note: it might appear that this $lang directory is mismatched, and it is as
