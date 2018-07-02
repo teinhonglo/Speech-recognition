@@ -22,7 +22,7 @@
 # normalized by removing the total forward cost from them. The resulting lattice
 # is used as input to lattice-mbr-decode. This should not be put in steps/ or 
 # utils/ since the scores on the combined lattice must not be scaled.
-
+set -euo pipefail
 # begin configuration section.
 cmd=run.pl
 beam=4 # prune the lattices prior to MBR decoding, for speed.
@@ -59,12 +59,12 @@ Options:
 [ -f ./path.sh ] && . ./path.sh
 . parse_options.sh || exit 1;
 
-
 if [ $# -lt 5 ]; then
   printf "$help_message\n";
   exit 1;
 fi
 
+echo "$0 $@"
 data=$1
 lang=$2
 dir=${@: -1}  # last argument to the script
@@ -136,6 +136,7 @@ if [ -z "$lat_weights" ]; then
 fi
 
 if [ $stage -le 0 ]; then  
+  echo "$0 lattice combination"
   $cmd $parallel_opts LMWT=$min_lmwt:$max_lmwt $dir/log/combine_lats.LMWT.log \
     mkdir -p $dir/ascore_LMWT/ '&&' \
     lattice-combine --lat-weights=$lat_weights "${lats[@]}" ark:- \| \
