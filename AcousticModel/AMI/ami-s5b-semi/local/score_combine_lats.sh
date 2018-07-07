@@ -22,10 +22,11 @@
 # normalized by removing the total forward cost from them. The resulting lattice
 # is used as input to lattice-mbr-decode. This should not be put in steps/ or 
 # utils/ since the scores on the combined lattice must not be scaled.
-
+set -euo pipefail
 # begin configuration section.
 cmd=run.pl
 beam=4 # prune the lattices prior to MBR decoding, for speed.
+acwt=0.1  # Just a default value, used for adaptation and beam-pruning..
 stage=0
 cer=0
 decode_mbr=true
@@ -39,7 +40,24 @@ skip_scoring=false
 ctm_name=
 overlap_spk=4
 asclite=false
+JOB_str=JOB
+post_decode_acwt=1.0
+minimize=false
+lattice_beam=8.0 # Beam we use in lattice generation.
+word_determinize=false  # If set to true, then output lattice does not retain
+                        # alternate paths a sequence of words (with alternate pronunciations).
+                        # Setting to true is the default in steps/nnet3/decode.sh.
+                        # However, setting this to false
+                        # is useful for generation w of semi-supervised training
+                        # supervision and frame-level confidences.
+write_compact=true   # If set to false, then writes the lattice in non-compact format,
+                     # retaining the acoustic scores on each arc. This is
+                     # required to be false for LM rescoring undeterminized
+                     # lattices (when --word-determinize is false)
+
 #end configuration section.
+
+echo "$0 $@"
 
 help_message="Usage: "$(basename $0)" [options] <data-dir> <graph-dir|lang-dir> <decode-dir1>[:lmwt-bias] <decode-dir2>[:lmwt-bias] [<decode-dir3>[:lmwt-bias] ... ] <out-dir>
      E.g. "$(basename $0)" data/test data/lang exp/tri1/decode exp/tri2/decode exp/tri3/decode exp/combine
@@ -79,20 +97,6 @@ if [ -z ${ctm_name} ] ; then
   ctm_name=`basename $data`
 fi
 
-hubscr=$KALDI_ROOT/tools/sctk/bin/hubscr.pl
-[ ! -f $hubscr ] && echo "Cannot find scoring program at $hubscr" && exit 1;
-hubdir=`dirname $hubscr`
-
-for f in $lang/words.txt $lang/phones/word_boundary.int ; do
-  [ ! -f $f ] && echo "$0: file $f does not exist" && exit 1;
-done
-if ! $skip_scoring ; then
-  for f in  $data/stm; do
-    [ ! -f $f ] && echo "$0: file $f does not exist" && exit 1;
-  done
-fi
-
-
 mkdir -p $dir/log
 
 for i in `seq 0 $[num_sys-1]`; do
@@ -113,93 +117,66 @@ for i in `seq 0 $[num_sys-1]`; do
       exit 1;
     fi
   fi
-  file_list=""
-  # I want to get the files in the correct order so we can use ",s,cs" to avoid
-  # memory blowup.  I first tried a pattern like file.{1,2,3,4}.gz, but if the
-  # system default shell is not bash (e.g. dash, in debian) this will not work,
-  # so we enumerate all the input files.  This tends to make the command lines
-  # very long.
-  for j in `seq $nj`; do file_list="$file_list $decode_dir/lat.$j.gz"; done
-
-  lats[$i]="ark,s,cs:lattice-scale --inv-acoustic-scale=\$[$offset+LMWT] 'ark:gunzip -c $file_list|' ark:- | \
-    lattice-limit-depth ark:- ark:- | \
-    lattice-push --push-strings=false ark:- ark:- | \
-    lattice-align-words-lexicon --max-expand=10.0 \
-      $lang/phones/align_lexicon.int $model ark:- ark:- |"
+  lats[$i]="ark:gunzip -c $decode_dir/lat.JOB.gz|"
+  echo $decode_dir
 done
+# assume the nnet trained by 
+# the same GMM, frame_shift and frame subsampling factor
+mkdir -p $dir/log
 
-mkdir -p $dir/ascoring/log
+model_dir=`dirname $model`
 
+if [ -f $model ]; then
+  echo "$0: $model exists, copy model to $dir/../"
+  cp $model $dir/../
+fi
+
+if [ -f $decode_dir/num_jobs ]; then
+  echo "$0: $decode_dir/num_jobs exists, copy model to $dir/"
+  cp $decode_dir/num_jobs $dir
+fi
+
+if [ -f $model_dir/frame_shift ]; then
+  cp $model_dir/frame_shift $dir/../
+  echo "$0: $model_dir/frame_shift exists, copy $model_dir/frame_shift to $dir/../"
+elif [ -f $model_dir/frame_subsampling_factor ]; then
+  cp $model_dir/frame_subsampling_factor $dir/../
+  echo "$0: $model_dir/frame_subsampling_factor exists, copy $model_dir/frame_subsampling_factor to $dir/../"
+fi
+
+lat_wspecifier="ark:|"
+if ! $write_compact; then
+  extra_opts="--determinize-lattice=false"
+  lat_wspecifier="ark:| lattice-determinize-phone-pruned --beam=$lattice_beam --acoustic-scale=$acwt --minimize=$minimize --word-determinize=$word_determinize --write-compact=false $model ark:- ark:- |"
+fi
+
+if [ "$post_decode_acwt" == 1.0 ]; then
+  lat_wspecifier="$lat_wspecifier gzip -c >$dir/lat.JOB.gz"
+else
+  lat_wspecifier="$lat_wspecifier lattice-scale --acoustic-scale=$post_decode_acwt --write-compact=$write_compact ark:- ark:- | gzip -c >$dir/lat.JOB.gz"
+fi
+
+# lattice weight
 if [ -z "$lat_weights" ]; then
   lat_weights=1.0
   for i in `seq $[$num_sys-1]`; do lat_weights="$lat_weights:1.0"; done
 fi
 
 if [ $stage -le 0 ]; then  
-  $cmd $parallel_opts LMWT=$min_lmwt:$max_lmwt $dir/log/combine_lats.LMWT.log \
-    mkdir -p $dir/ascore_LMWT/ '&&' \
-    lattice-combine --lat-weights=$lat_weights "${lats[@]}" ark:- \| \
-    lattice-to-ctm-conf --decode-mbr=true ark:- - \| \
-    utils/int2sym.pl -f 5 $lang/words.txt  \| \
-    utils/convert_ctm.pl $data/segments $data/reco2file_and_channel \
-    '>' $dir/ascore_LMWT/${ctm_name}.ctm || exit 1;
-fi
-
-
-if [ $stage -le 1 ]; then
-# Remove some stuff we don't want to score, from the ctm.
-# - we remove hesitations here, otherwise the CTM would have a bug!
-#   (confidences in place of the removed hesitations),
-  for lmwt in `seq $min_lmwt $max_lmwt`; do
-    x=$dir/ascore_${lmwt}/${ctm_name}.ctm
-    [ ! -f $x ] && echo "File $x does not exist! Exiting... " && exit 1
-    cp $x $x.bkup1;
-    cat $x.bkup1 | grep -i -v -E '\[noise|laughter|vocalized-noise\]' | \
-      grep -i -v -E ' (ACH|AH|EEE|EH|ER|EW|HA|HEE|HM|HMM|HUH|MM|OOF|UH|UM) ' | \
-      grep -i -v -E '<unk>' > $x;
-    cp $x $x.bkup2;
-  done
+  echo "$0, combine lattice (hypothesis combine)"
+  $cmd $parallel_opts JOB=1:$nj $dir/log/decode_combine.JOB.log \
+    lattice-combine --acoustic-scale=$acwt --lat-weights=$lat_weights "${lats[@]}" "$lat_wspecifier" || exit 1;
+	## lattice-determinize-pruned
 fi
 
 if ! $skip_scoring ; then
   if [ $stage -le 2 ]; then
-    if [ "$asclite" == "true" ]; then
-      oname=$ctm_name
-	  echo $ctm_name
-      [ ! -z $overlap_spk ] && oname=${ctm_name}_o$overlap_spk
-      echo "asclite is starting"
-      # Run scoring, meaning of hubscr.pl options:
-      # -G .. produce alignment graphs,
-      # -v .. verbose,
-      # -m .. max-memory in GBs,
-      # -o .. max N of overlapping speakers,
-      # -a .. use asclite,
-      # -C .. compression for asclite,
-      # -B .. blocksize for asclite (kBs?),
-      # -p .. path for other components,
-      # -V .. skip validation of input transcripts,
-      # -h rt-stt .. removes non-lexical items from CTM,
-      $cmd LMWT=$min_lmwt:$max_lmwt $dir/ascoring/log/score.LMWT.log \
-      cp $data/stm $dir/ascore_LMWT/ '&&' \
-      cp $dir/ascore_LMWT/${ctm_name}.ctm $dir/ascore_LMWT/${oname}.ctm '&&' \
-      $hubscr -G -v -m 1:2 -o$overlap_spk -a -C -B 8192 -p $hubdir -V -l english \
-        -h rt-stt -g $data/glm -r $dir/ascore_LMWT/stm $dir/ascore_LMWT/${oname}.ctm || exit 1
-      # Compress some scoring outputs : alignment info and graphs,
-      echo -n "compressing asclite outputs "
-      for LMWT in $(seq $min_lmwt $max_lmwt); do
-        ascore=$dir/ascore_${LMWT}
-        gzip -f $ascore/${oname}.ctm.filt.aligninfo.csv
-        cp $ascore/${oname}.ctm.filt.alignments/index.html $ascore/${oname}.ctm.filt.overlap.html
-        tar -C $ascore -czf $ascore/${oname}.ctm.filt.alignments.tar.gz ${oname}.ctm.filt.alignments
-        rm -r $ascore/${oname}.ctm.filt.alignments
-        echo -n "LMWT:$LMWT "
-       done
-       echo done
-    else
-      $cmd LMWT=$min_lmwt:$max_lmwt $dir/ascoring/log/score.LMWT.log \
-        cp $data/stm $dir/ascore_LMWT/ '&&' \
-        $hubscr -p $hubdir -v -V -l english -h hub5 -g $data/glm -r $dir/ascore_LMWT/stm $dir/ascore_LMWT/${ctm_name}.ctm || exit 1
-    fi
+    [ ! -x local/score.sh ] && \
+      echo "Not scoring because local/score.sh does not exist or not executable." && exit 1;
+    echo "score best paths"
+	scoring_opts="--min-lmwt 5 "
+    local/score.sh $scoring_opts --cmd "$cmd" $data $lang $dir
+    echo "score confidence and timing with sclite"
   fi
 fi
 

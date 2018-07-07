@@ -78,6 +78,7 @@ unsup_egs_opts=  # Extra options to pass to unsupervised egs creation
 xent_regularize=0.1
 
 decode_iter=  # Iteration to decode with
+phn_affix=_best_phn
 
 # End configuration section.
 echo "$0 $@"  # Print the command line for logging
@@ -90,7 +91,7 @@ final_lm=`cat data/local/lm/final_lm`
 LM=$final_lm.pr1-7
 
 sup_chain_dir_base=`basename $sup_chain_dir`
-tdnn_semi=${sup_chain_dir_base}${tdnn_affix}
+tdnn_semi=${sup_chain_dir_base}${tdnn_affix}${phn_affix}
 
 
 # The following can be replaced with the versions that do not model
@@ -171,7 +172,7 @@ fi
 if [ $stage -le 4 ]; then
   echo "$0: getting the decoding lattices for the unsupervised subset using the chain model at: $sup_chain_dir"
   steps/nnet3/decode_semisup.sh --num-threads 5 --nj $nj --cmd "$decode_cmd" \
-            --acwt 1.0 --post-decode-acwt 10.0 --write-compact false --skip-scoring false \
+            --acwt 1.0 --post-decode-acwt 10.0 --write-compact false --skip-scoring true \
 			--online-ivector-dir $ivector_root_dir/ivectors_${unsupervised_set_perturbed}_hires_comb \
             --scoring-opts "--min-lmwt 10 --max-lmwt 10" --word-determinize false \
             $graphdir $data_root/${unsupervised_set_perturbed}_hires_comb $sup_chain_dir/decode_${unsupervised_set_perturbed}
@@ -339,15 +340,15 @@ fi
 unsup_frames_per_eg=150  # Using a frames-per-eg of 150 for unsupervised data
                          # was found to be better than allowing smaller chunks
                          # (160,140,110,80) like for supervised system
-lattice_lm_scale=0.5  # lm-scale for using the weights from unsupervised lattices when
+lattice_lm_scale=0  # lm-scale for using the weights from unsupervised lattices when
                       # creating numerator supervision
-lattice_prune_beam=4.0  # beam for pruning the lattices prior to getting egs
+lattice_prune_beam=0  # beam for pruning the lattices prior to getting egs
                         # for unsupervised data
 tolerance=1   # frame-tolerance for chain training
 
 unsup_lat_dir=${sup_chain_dir}/decode_${unsupervised_set_perturbed}_big
 if [ -z "$unsup_egs_dir" ]; then
-  unsup_egs_dir=$dir/egs_${unsupervised_set_perturbed}
+  unsup_egs_dir=$dir/egs_${unsupervised_set_perturbed}${phn_affix}
 
   if [ $stage -le 13 ]; then
     if [[ $(hostname -f) == *.clsp.jhu.edu ]] && [ ! -d $unsup_egs_dir/storage ]; then
@@ -374,7 +375,7 @@ if [ -z "$unsup_egs_dir" ]; then
   fi
 fi
 
-comb_egs_dir=$dir/comb_egs
+comb_egs_dir=$dir/comb_egs${phn_affix}
 if [ $stage -le 14 ]; then
   steps/nnet3/chain/multilingual/combine_egs.sh --cmd "$train_cmd" \
     --block-size 128 \
@@ -414,7 +415,7 @@ if [ $stage -le 15 ]; then
     --lat-dir $sup_lat_dir \
     --dir $dir || exit 1;
 fi
-
+test_graph_affix=${test_graph_affix}${phn_affix}
 test_graph_dir=$dir/graph${test_graph_affix}
 if [ $stage -le 16 ]; then
   # Note: it might appear that this $lang directory is mismatched, and it is as

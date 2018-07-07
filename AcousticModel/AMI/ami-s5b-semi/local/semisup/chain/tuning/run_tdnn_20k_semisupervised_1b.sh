@@ -78,6 +78,7 @@ unsup_egs_opts=  # Extra options to pass to unsupervised egs creation
 xent_regularize=0.1
 
 decode_iter=  # Iteration to decode with
+phn_affix=_best_phn
 
 # End configuration section.
 echo "$0 $@"  # Print the command line for logging
@@ -90,7 +91,7 @@ final_lm=`cat data/local/lm/final_lm`
 LM=$final_lm.pr1-7
 
 sup_chain_dir_base=`basename $sup_chain_dir`
-tdnn_semi=${sup_chain_dir_base}${tdnn_affix}
+tdnn_semi=${sup_chain_dir_base}${tdnn_affix}${phn_affix}
 
 
 # The following can be replaced with the versions that do not model
@@ -346,7 +347,6 @@ lattice_prune_beam=0  # beam for pruning the lattices prior to getting egs
 tolerance=1   # frame-tolerance for chain training
 
 unsup_lat_dir=${sup_chain_dir}/decode_${unsupervised_set_perturbed}_big
-phn_affix=_best_phn
 
 if [ -z "$unsup_egs_dir" ]; then
   unsup_egs_dir=$dir/egs_${unsupervised_set_perturbed}${phn_affix}
