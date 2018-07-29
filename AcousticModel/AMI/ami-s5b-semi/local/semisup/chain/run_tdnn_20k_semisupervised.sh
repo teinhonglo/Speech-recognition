@@ -1,1 +1,1 @@
-tuning/run_tdnn_20k_semisupervised_1a.sh
+tuning/run_tdnn_20k_semisupervised_mt_1a.sh

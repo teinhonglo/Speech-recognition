@@ -1,0 +1,24 @@
+steps/nnet3/chain/train.py --stage $train_stage \
+    --egs.dir "$comb_egs_dir" \
+    --cmd "$decode_cmd" \
+    --feat.online-ivector-dir $sup_ivector_dir \
+    --feat.cmvn-opts "--norm-means=false --norm-vars=false" \
+    --chain.xent-regularize $xent_regularize \
+    --chain.leaky-hmm-coefficient 0.1 \
+    --chain.l2-regularize 0.00005 \
+    --chain.apply-deriv-weights true \
+    --chain.lm-opts="--num-extra-lm-states=2000" \
+    --egs.chunk-width $frames_per_eg \
+    --trainer.num-chunk-per-minibatch 128 \
+    --trainer.frames-per-iter 1500000 \
+    --trainer.num-epochs 4 \
+    --trainer.optimization.num-jobs-initial 3 \
+    --trainer.optimization.num-jobs-final 16 \
+    --trainer.optimization.initial-effective-lrate 0.001 \
+    --trainer.optimization.final-effective-lrate 0.0001 \
+    --trainer.max-param-change 2.0 \
+    --cleanup.remove-egs false \
+    --feat-dir data/${supervised_set_perturbed}_hires \
+    --tree-dir $sup_tree_dir \
+    --lat-dir $sup_lat_dir \
+    --dir $dir || exit 1;

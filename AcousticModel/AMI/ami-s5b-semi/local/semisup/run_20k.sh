@@ -239,7 +239,7 @@ if [ $stage -le 10 ]; then
     --ivector-root-dir $exp_root/nnet3_semi20k_80k${clean_affix} \
     --chain-affix _semi20k_80k${clean_affix} \
 	--data-root $data_root \
-    --exp-root $exp_root --stage 10
+    --exp-root $exp_root --stage 2
 fi
 exit 0;
 ###############################################################################

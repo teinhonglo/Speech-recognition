@@ -255,12 +255,10 @@ if [ $stage -le 11 ]; then
   cat <<EOF > $dir/configs/network.xconfig
   input dim=100 name=ivector
   input dim=40 name=input
-
   # please note that it is important to have input layer with the name=input
   # as the layer immediately preceding the fixed-affine-layer to enable
   # the use of short notation for the descriptor
   fixed-affine-layer name=lda input=Append(-1,0,1,ReplaceIndex(ivector, t, 0)) affine-transform-file=$dir/configs/lda.mat
-
   # the first splicing is moved before the lda layer, so no splicing here
   relu-batchnorm-layer name=tdnn1 dim=450
   relu-batchnorm-layer name=tdnn2 input=Append(-1,0,1) dim=450
@@ -269,11 +267,9 @@ if [ $stage -le 11 ]; then
   relu-batchnorm-layer name=tdnn5 input=Append(-3,0,3) dim=450
   relu-batchnorm-layer name=tdnn6 input=Append(-3,0,3) dim=450
   relu-batchnorm-layer name=tdnn7 input=Append(-3,0,3) dim=450
-
   ## adding the layers for chain branch
   relu-batchnorm-layer name=prefinal-chain input=tdnn7 dim=450 target-rms=0.5
   output-layer name=output input=prefinal-chain include-log-softmax=false dim=$num_targets max-change=1.5
-
   # adding the layers for xent branch
   # This block prints the configs for a separate output that will be
   # trained with a cross-entropy objective in the 'chain' models... this
@@ -285,16 +281,12 @@ if [ $stage -le 11 ]; then
   # similar in the xent and regular final layers.
   relu-batchnorm-layer name=prefinal-xent input=tdnn7 dim=450 target-rms=0.5
   output-layer name=output-xent dim=$num_targets learning-rate-factor=$learning_rate_factor max-change=1.5
-
   # We use separate outputs for supervised and unsupervised data
   # so we can properly track the train and valid objectives.
-
   output name=output-0 input=output.affine
   output name=output-1 input=output.affine
-
   output name=output-0-xent input=output-xent.log-softmax
   output name=output-1-xent input=output-xent.log-softmax
-
 EOF
 
   steps/nnet3/xconfig_to_configs.py --xconfig-file $dir/configs/network.xconfig --config-dir $dir/configs/

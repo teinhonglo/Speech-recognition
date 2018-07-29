@@ -2,6 +2,7 @@
 
 # Copyright 2012-2013  Arnab Ghoshal
 #                      Johns Hopkins University (authors: Daniel Povey, Sanjeev Khudanpur)
+#                      Tien-Hong Lo
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -105,14 +106,15 @@ for i in `seq 0 $[num_sys-1]`; do
   for f in $model $decode_dir/lat.1.gz ; do
     [ ! -f $f ] && echo "$0: expecting file $f to exist" && exit 1;
   done
-  if [ $i -eq 0 ]; then
-    nj=`cat $decode_dir/num_jobs` || exit 1;
-  else
-    if [ $nj != `cat $decode_dir/num_jobs` ]; then
-      echo "$0: number of decoding jobs mismatches, $nj versus `cat $decode_dir/num_jobs`" 
-      exit 1;
-    fi
-  fi
+  nj=`cat $decode_dir/num_jobs` || exit 1;
+  #if [ $i -eq 0 ]; then
+  #  nj=`cat $decode_dir/num_jobs` || exit 1;
+  #else
+  #  if [ $nj != `cat $decode_dir/num_jobs` ]; then
+  #    echo "$0: number of decoding jobs mismatches, $nj versus `cat $decode_dir/num_jobs`" 
+  #    exit 1;
+  #  fi
+  #fi
   file_list=""
   # I want to get the files in the correct order so we can use ",s,cs" to avoid
   # memory blowup.  I first tried a pattern like file.{1,2,3,4}.gz, but if the

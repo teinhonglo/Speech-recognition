@@ -233,9 +233,9 @@ diff $sup_tree_dir/tree $sup_chain_dir/tree || { echo "$0: $sup_tree_dir/tree an
 #     --use-fmllr false --context-opts "--context-width=2 --central-position=1" \
 #     --frame-subsampling-factor $frame_subsampling_factor \
 #     7000 $lang \
-#     data/${supervised_set_perturbed} \
+#     data/${supervised_set_perturbed}_hires_comb \
 #     ${sup_tree_dir} \
-#     data/${unsupervised_set_perturbed} \
+#     data/${unsupervised_set_perturbed}_hires_comb \
 #     $chaindir/best_path_${unsupervised_set_perturbed} \
 #     $treedir || exit 1
 # fi

@@ -83,6 +83,8 @@ if [ $# -lt 5 ]; then
   exit 1;
 fi
 
+echo $0;
+
 data=$1
 lang=$2
 dir=${@: -1}  # last argument to the script
@@ -117,7 +119,12 @@ for i in `seq 0 $[num_sys-1]`; do
       exit 1;
     fi
   fi
-  lats[$i]="ark:gunzip -c $decode_dir/lat.JOB.gz|"
+  lats[$i]="ark,s,cs:lattice-scale --inv-acoustic-scale=\$[$offset] 'ark:gunzip -c $decode_dir/lat.JOB.gz|' ark:- | \
+      lattice-limit-depth ark:- ark:- | \
+    lattice-push --push-strings=false ark:- ark:- | \
+    lattice-align-words-lexicon --max-expand=10.0 \
+      $lang/phones/align_lexicon.int $model ark:- ark:- |"
+  #lats[$i]="ark,s,cs:gunzip -c $decode_dir/lat.JOB.gz|"
   echo $decode_dir
 done
 # assume the nnet trained by 
@@ -150,11 +157,13 @@ if ! $write_compact; then
   lat_wspecifier="ark:| lattice-determinize-phone-pruned --beam=$lattice_beam --acoustic-scale=$acwt --minimize=$minimize --word-determinize=$word_determinize --write-compact=false $model ark:- ark:- |"
 fi
 
-if [ "$post_decode_acwt" == 1.0 ]; then
-  lat_wspecifier="$lat_wspecifier gzip -c >$dir/lat.JOB.gz"
-else
-  lat_wspecifier="$lat_wspecifier lattice-scale --acoustic-scale=$post_decode_acwt --write-compact=$write_compact ark:- ark:- | gzip -c >$dir/lat.JOB.gz"
-fi
+#if [ "$post_decode_acwt" == 1.0 ]; then
+#  lat_wspecifier="$lat_wspecifier gzip -c >$dir/lat.JOB.gz"
+#else
+#  lat_wspecifier="$lat_wspecifier lattice-scale --acoustic-scale=$post_decode_acwt --write-compact=$write_compact ark:- ark:- | gzip -c >$dir/lat.JOB.gz"
+#fi
+
+lat_wspecifier="$lat_wspecifier gzip -c >$dir/lat.JOB.gz"
 
 # lattice weight
 if [ -z "$lat_weights" ]; then
@@ -165,8 +174,7 @@ fi
 if [ $stage -le 0 ]; then  
   echo "$0, combine lattice (hypothesis combine)"
   $cmd $parallel_opts JOB=1:$nj $dir/log/decode_combine.JOB.log \
-    lattice-combine --acoustic-scale=$acwt --lat-weights=$lat_weights "${lats[@]}" "$lat_wspecifier" || exit 1;
-	## lattice-determinize-pruned
+    lattice-combine --lat-weights=$lat_weights "${lats[@]}" "$lat_wspecifier"
 fi
 
 if ! $skip_scoring ; then
@@ -179,6 +187,3 @@ if ! $skip_scoring ; then
     echo "score confidence and timing with sclite"
   fi
 fi
-
-
-exit 0

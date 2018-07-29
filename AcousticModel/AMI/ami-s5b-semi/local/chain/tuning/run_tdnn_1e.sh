@@ -210,7 +210,7 @@ if [ $stage -le 16 ]; then
      /export/b0{5,6,7,8}/$USER/kaldi-data/egs/ami-$(date +'%m_%d_%H_%M')/s5b/$dir/egs/storage $dir/egs/storage
   fi
 
-  steps/nnet3/chain/train.py --stage $train_stage \
+  steps/nnet3/chain/train_test.py --stage $train_stage \
     --cmd "$cuda_cmd" \
     --feat.online-ivector-dir $train_ivector_dir \
     --feat.cmvn-opts "--norm-means=false --norm-vars=false" \
@@ -236,7 +236,7 @@ if [ $stage -le 16 ]; then
     --lat-dir $lat_dir \
     --dir $dir
 fi
-
+exit 0;
 
 graph_dir=$dir/graph_${LM}
 if [ $stage -le 17 ]; then
