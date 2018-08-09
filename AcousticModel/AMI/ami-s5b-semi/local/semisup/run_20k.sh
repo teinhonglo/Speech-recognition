@@ -229,7 +229,8 @@ fi
 ###############################################################################
 
 if [ $stage -le 10 ]; then
-  local/semisup/chain/run_tdnn_20k_semisupervised.sh \
+  #local/semisup/chain/tuning/run_tdnn_20k_semisupervised_mt_1a.sh 
+  local/adapt/chain/tuning/run_tdnn_20k_semisupervised_mt_layer_1a.sh \
     --mic $mic \
     --supervised-set ${train_sup_dir}${clean_affix} \
     --unsupervised-set ${train_unsup_dir}${clean_affix} \
@@ -239,7 +240,7 @@ if [ $stage -le 10 ]; then
     --ivector-root-dir $exp_root/nnet3_semi20k_80k${clean_affix} \
     --chain-affix _semi20k_80k${clean_affix} \
 	--data-root $data_root \
-    --exp-root $exp_root --stage 2
+    --exp-root $exp_root --stage 10
 fi
 exit 0;
 ###############################################################################

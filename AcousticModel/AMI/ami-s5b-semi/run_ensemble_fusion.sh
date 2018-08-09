@@ -1,6 +1,6 @@
 #!/bin/bash
 
-stage=0
+stage=2
 nnet3_affix=_semi20k_80k
 src_model_root=exp/ihm/semisup_20k/chain_semi20k_80k
 exp_root=exp/ihm/semisup_20k
@@ -64,30 +64,28 @@ WORD
    local/score_combine.sh --cmd "$decode_cmd" --stage 0 \
                            data/ihm/semisup/${decode_set}_hires \
                            data/lang_ami.o3g.kn.pr1-7 \
-                           $src_model_root/tdnn_1d_sp_bi/decode_${decode_set}:1 \
-                           $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn_nonpost/decode_poco_best_phn_${decode_set}:1 \
-                           $exp_root/ensemble/tdnn_hyp_stage/decode_1d_${decode_set}_nopost
+                           $src_model_root/tdnn_1a_sp_bi/decode_${decode_set}:1 \
+                           $src_model_root/tdnn_1a_sp_bi_semisup_1b_best_phn_nonpost/decode_poco_best_phn_${decode_set}:1 \
+                           $exp_root/ensemble/tdnn_hyp_stage/decode_${decode_set}_nopost
 						   
    local/score_combine.sh --cmd "$decode_cmd" --stage 0 \
                            data/ihm/semisup/${decode_set}_hires \
                            data/lang_ami.o3g.kn.pr1-7 \
-                           $src_model_root/tdnn_1d_sp_bi/decode_${decode_set}:1 \
-			   $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn_nonpost/decode_poco_best_phn_${decode_set}:1 \
-                           $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn/decode_poco_best_phn_${decode_set}:1 \
-                           $exp_root/ensemble/tdnn_hyp_stage/decode_1d_${decode_set}_best_phn
-
+                           $src_model_root/tdnn_1a_sp_bi/decode_${decode_set}:1 \
+						   $src_model_root/tdnn_1a_sp_bi_semisup_1b_best_phn_nonpost/decode_poco_best_phn_${decode_set}:1 \
+                           $src_model_root/tdnn_1a_sp_bi_semisup_1b_best_phn/decode_poco_best_phn_${decode_set}:1 \
+                           $exp_root/ensemble/tdnn_hyp_stage/decode_${decode_set}_best_phn
+   
     local/score_combine.sh --cmd "$decode_cmd" --stage 0 \
                            data/ihm/semisup/${decode_set}_hires \
                            data/lang_ami.o3g.kn.pr1-7 \
-                           $src_model_root/tdnn_1d_sp_bi/decode_${decode_set}:1 \
-			   $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn_nonpost/decode_poco_best_phn_${decode_set}:1 \
-                           $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn/decode_poco_best_phn_${decode_set}:1 \
-			   $src_model_root/tdnn_1d_sp_bi_semisup_1d/decode_poco_${decode_set}:1 \
-                           $exp_root/ensemble/tdnn_hyp_stage/decode_1d_${decode_set}_semi					   
+                           $src_model_root/tdnn_1a_sp_bi/decode_${decode_set}:1 \
+						   $src_model_root/tdnn_1a_sp_bi_semisup_1b_best_phn_nonpost/decode_poco_best_phn_${decode_set}:1 \
+                           $src_model_root/tdnn_1a_sp_bi_semisup_1b_best_phn/decode_poco_best_phn_${decode_set}:1 \
+						   $src_model_root/tdnn_1a_sp_bi_semisup_1b/decode_poco_${decode_set}:1
+                           $exp_root/ensemble/tdnn_hyp_stage/decode_${decode_set}_semi					   
   done
 fi
-
-exit 0;
 
 if [ $stage -le 1 ]; then
   echo "$0, Hypothesis Combine and generate lattice"
@@ -140,11 +138,10 @@ WORD
   done
 fi
 
-exit 0;
-
 if [ $stage -le 2 ]; then
   echo "$0, Frame Level Combine and generate lattice"
   for decode_set in dev eval; do
+<<WORD
     local/score_fusion.sh --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
 	                       --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
 						   --num-threads 5 --frame-subsampling-factor 3 \
@@ -188,7 +185,7 @@ if [ $stage -le 2 ]; then
                            $src_model_root/tdnn_1c_oracle_sp_bi \
                            $src_model_root/tdnn_1d_oracle_sp_bi \
                            $exp_root/ensemble/tdnn_fusion/decode_oracle_${decode_set}
-<<WORD
+
     local/score_fusion.sh --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
 	                       --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
 						   --num-threads 5 --frame-subsampling-factor 3 \
@@ -200,6 +197,36 @@ if [ $stage -le 2 ]; then
                            $src_model_root/tdnn_1d_oracle_sp_bi \
                            $exp_root/tdnn_fusion/decode_${decode_set}_lats
 WORD
+
+   local/score_fusion.sh   --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
+                           --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
+                           --num-threads 5 --frame-subsampling-factor 3 \
+                           data/ihm/semisup/${decode_set}_hires \
+                           $src_model_root/tdnn_1d_oracle_sp_bi/graph_poco \
+                           $src_model_root/tdnn_1d_sp_bi \
+                           $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn_nonpost \
+                           $exp_root/ensemble/tdnn_fusion_stage/decode_1d_${decode_set}_nopost
+						   
+   local/score_fusion.sh   --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
+                           --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
+                           --num-threads 5 --frame-subsampling-factor 3 \
+                           data/ihm/semisup/${decode_set}_hires \
+                           $src_model_root/tdnn_1d_oracle_sp_bi/graph_poco \
+                           $src_model_root/tdnn_1d_sp_bi \
+                           $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn_nonpost \
+                           $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn \
+                           $exp_root/ensemble/tdnn_fusion_stage/decode_1d_${decode_set}_best_phn
+   
+    local/score_fusion.sh  --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
+                           --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
+                           --num-threads 5 --frame-subsampling-factor 3 \
+                           data/ihm/semisup/${decode_set}_hires \
+                           $src_model_root/tdnn_1d_oracle_sp_bi/graph_poco \
+                           $src_model_root/tdnn_1d_sp_bi \
+                           $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn_nonpost \
+                           $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn \
+			   $src_model_root/tdnn_1d_sp_bi_semisup_1d \
+                           $exp_root/ensemble/tdnn_fusion_stage/decode_1d_${decode_set}_semi
   done
 fi  
 

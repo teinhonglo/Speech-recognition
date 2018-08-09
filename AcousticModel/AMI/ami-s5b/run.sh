@@ -17,7 +17,7 @@ mic=ihm
 
 # Train systems,
 nj=30 # number of parallel jobs,
-stage=1
+stage=0
 nn_stage=0
 train_nn_stage=-10
 . utils/parse_options.sh
@@ -28,7 +28,7 @@ nmics=$(echo $mic | sed 's/[a-z]//g') # e.g. 8 for mdm8.
 set -euo pipefail
 
 # Path where AMI gets downloaded (or where locally available):
-AMI_DIR=/share/corpus/amicorpus # Default,
+AMI_DIR=/share/nas165/teinhonglo/amicorpus # Default,
 case $(hostname -d) in
   fit.vutbr.cz) AMI_DIR=/mnt/scratch05/iveselyk/KALDI_AMI_WAV ;; # BUT,
   clsp.jhu.edu) AMI_DIR=/export/corpora4/ami/amicorpus ;; # JHU,
@@ -52,7 +52,6 @@ if [ $stage -le 0 ]; then
   fi
   local/ami_download.sh $mic $AMI_DIR
 fi
-
 
 if [ "$base_mic" == "mdm" ]; then
   PROCESSED_AMI_DIR=$AMI_DIR/beamformed

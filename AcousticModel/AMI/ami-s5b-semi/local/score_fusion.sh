@@ -31,7 +31,7 @@ ivector_scale=1.0
 apply_exp=false  # Apply exp i.e. write likelihoods instead of log-likelihoods
 compress=false    # Specifies whether the output should be compressed before
                   # dumping to disk
-use_gpu=false
+use_gpu=true
 skip_diagnostics=false
 extra_left_context=0
 extra_right_context=0

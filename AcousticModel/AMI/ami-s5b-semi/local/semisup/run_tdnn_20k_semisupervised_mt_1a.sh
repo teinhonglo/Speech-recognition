@@ -119,7 +119,7 @@ unsupervised_set_perturbed=${unsupervised_set}_sp
 sup_ivector_dir=$ivector_root_dir/ivectors_${supervised_set_perturbed}_hires_comb
 
 graphdir=$sup_chain_dir/graph${unsup_decode_graph_affix}
-lang=data/lang_chain
+lang=data/lang
 
 for f in $data_root/${supervised_set_perturbed}/feats.scp \
   $data_root/${supervised_set_perturbed}_hires_comb/feats.scp \
@@ -151,7 +151,7 @@ if [ $stage -le 2 ]; then
   # just copy over the CMVN to avoid having to recompute it.
   cp $data_root/${unsupervised_set_perturbed}/cmvn.scp $data_root/${unsupervised_set_perturbed}_comb/
   utils/fix_data_dir.sh $data_root/${unsupervised_set_perturbed}_comb
-  stage=9
+  exit 0;
 <<WORD
   utils/data/perturb_data_dir_speed_3way.sh $data_root/${unsupervised_set} \
     $data_root/${unsupervised_set_perturbed}_hires
@@ -181,9 +181,9 @@ if [ $stage -le 3 ]; then
   steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj $nj \
     $temp_data_root/${unsupervised_set_perturbed}_max2_hires_comb $ivector_root_dir/extractor \
     $ivector_root_dir/ivectors_${unsupervised_set_perturbed}_hires_comb || exit 1
-WORD
-fi
 
+fi
+WORD
 # Decode unsupervised data and write lattices in non-compact
 # undeterminized format
 # Set --skip-scoring to false in order to score the unsupervised data
@@ -231,10 +231,10 @@ diff $sup_tree_dir/tree $sup_chain_dir/tree || { echo "$0: $sup_tree_dir/tree an
 
 tree_affix=bi_semisup_a
 treedir=$exp_root/chain${chain_affix}/tree_${tree_affix}
-#if [ -f $treedir/final.mdl ]; then
-#   echo "$0: $treedir/final.mdl exists. Remove it and run again."
-#   exit 1
-#fi
+if [ -f $treedir/final.mdl ]; then
+   echo "$0: $treedir/final.mdl exists. Remove it and run again."
+   exit 1
+fi
 
 if [ $stage -le 9 ]; then
    # This is usually 3 for chain systems.
@@ -253,7 +253,7 @@ if [ $stage -le 9 ]; then
     4200 $lang \
     $data_root/${supervised_set_perturbed}_comb \
     ${sup_tree_dir} \
-    $data_root/${unsupervised_set_perturbed}_comb \
+    $data_root/${unsupervised_set_perturbed}_hires_comb \
     $sup_chain_dir/best_path_${unsupervised_set_perturbed}_big \
     $treedir || exit 1
 fi
