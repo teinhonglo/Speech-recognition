@@ -22,11 +22,6 @@ set -euo pipefail
 
 . ./utils/parse_options.sh
 
-
-if [ -z $graph_dir ]; then
-  graph_dir=$dir/graph
-fi
-
 # configure number of jobs running in parallel, you should adjust these numbers according to your machines
 # data preparation
 if [ $stage -le -2 ]; then
@@ -39,41 +34,94 @@ fi
 # mfccdir should be some place with a largish disk where you
 # want to store MFCC features.
 
+data_dir=eval0
+
 # mfcc
 if [ $stage -le -1 ]; then
   echo "$0: Making mfccs"
-  for x in Eval; do
-    steps/make_mfcc_pitch.sh --cmd "$train_cmd" --nj $num_jobs $data_root/$x || exit 1;
-    steps/compute_cmvn_stats.sh $data_root/$x || exit 1;
-    utils/fix_data_dir.sh $data_root/$x || exit 1;
-  done
+  steps/make_mfcc_pitch.sh --cmd "$train_cmd" --nj $num_jobs $data_root/$data_dir || exit 1;
+  steps/compute_cmvn_stats.sh $data_root/$data_dir || exit 1;
+  utils/fix_data_dir.sh $data_root/$data_dir || exit 1;
 fi
-<<WORD
+
+
 if [ $stage -le 0 ]; then
-  echo
-  for datadir in Clean-test Other-test; do
-    steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj "$nj" \
-        $data_root/${datadir}_hires $exp_root/$ivector_dir/extractor \
-        $exp_root/$ivector_dir/ivectors_${datadir}_hires
-  done
+  echo "$0 Extract i-vector" 
+  steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj 8 \
+    data/${data}_hires_nopitch exp/nnet3${nnet3_affix}/extractor \
+      exp/nnet3${nnet3_affix}/ivectors_${data}
 fi
 
-if [ $stage -le 1]; then
-  for decode_set in Clean-test Other-test; do
-    (
-    decode_dir=${dir}/decode_${decode_set}
-    steps/nnet3/decode.sh --nj $nj --cmd "$decode_cmd" \
-          --online-ivector-dir $exp_root/$ivector_dir/ivectors_${decode_set}_hires \
-         $graph_dir $data_root/${decode_set}_hires $decode_dir
-    ) &
-  done
-  wait;
-  if [ -f $dir/.error ]; then
-    echo "$0: error detected during decoding"
-    exit 1
-  fi
+if [ $stage -le 1 ]; then
+  echo "$0 Decode."
 fi
 
+<<WORD
+# mono
+if [ $stage -le 0 ]; then
+
+  # Monophone decoding
+  (
+  steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj $num_jobs --stage 3 \
+    exp/mono/graph $data_root/$data_dir $exp_root/mono/decode_$data_dir
+  )
+
+fi
+
+# tri1
+if [ $stage -le 1 ]; then
+
+  # decode tri1
+  (
+  steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj $num_jobs \
+    exp/tri1/graph $data_root/$data_dir $exp_root/tri1/decode_$data_dir
+  )
+
+fi
+
+# tri2
+if [ $stage -le 2 ]; then
+
+  # decode tri2
+  (
+  steps/decode.sh --cmd "$decode_cmd" --config conf/decode.config --nj $num_jobs \
+    exp/tri2/graph $data_root/$data_dir $exp_root/tri2/decode_$data_dir
+  )
+
+fi
+
+# tri3a
+if [ $stage -le 3 ]; then
+
+  # decode tri3a
+  (
+  steps/decode.sh --cmd "$decode_cmd" --nj $num_jobs --config conf/decode.config \
+    exp/tri3a/graph $data_root/$data_dir $exp_root/tri3a/decode_$data_dir
+  )
+
+fi
+
+# tri4
+if [ $stage -le 4 ]; then
+
+  # decode tri4a
+  (
+  steps/decode_fmllr.sh --cmd "$decode_cmd" --nj $num_jobs --config conf/decode.config \
+    exp/tri4a/graph $data_root/$data_dir $exp_root/tri4a/decode_$data_dir
+  )
+
+fi
+
+# tri5
+if [ $stage -le 5 ]; then
+
+  # decode tri5
+  (
+  steps/decode_fmllr.sh --cmd "$decode_cmd" --nj $num_jobs --config conf/decode.config \
+     exp/tri5a/graph $data_root/$data_dir $exp_root/tri5a/decode_$data_dir || exit 1;
+  )
+
+fi
 WORD
 echo "$0: all done"
 

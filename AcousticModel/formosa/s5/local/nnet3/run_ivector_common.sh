@@ -14,6 +14,7 @@ stage=0
 train_set=train
 test_sets=test
 gmm=tri5a
+nj=20
 
 nnet3_affix=
 
@@ -37,10 +38,8 @@ if [ $stage -le 1 ]; then
   echo "$0: preparing directory for low-resolution speed-perturbed data (for alignment)"
   utils/data/perturb_data_dir_speed_3way.sh data/${train_set} data/${train_set}_sp
   echo "$0: making MFCC features for low-resolution speed-perturbed data"
-  steps/make_mfcc_pitch.sh --cmd "$train_cmd" --nj 70 data/${train_set}_sp \
-    exp/make_mfcc/${train_set}_sp mfcc_perturbed || exit 1;
-  steps/compute_cmvn_stats.sh data/${train_set}_sp \
-    exp/make_mfcc/${train_set}_sp mfcc_perturbed || exit 1;
+  steps/make_mfcc_pitch.sh --cmd "$train_cmd" --nj $nj data/${train_set}_sp || exit 1;
+  steps/compute_cmvn_stats.sh data/${train_set}_sp || exit 1;
   utils/fix_data_dir.sh data/${train_set}_sp
 fi
 
@@ -68,13 +67,14 @@ if [ $stage -le 3 ]; then
   utils/data/perturb_data_dir_volume.sh data/${train_set}_sp_hires || exit 1;
 
   for datadir in ${train_set}_sp ${test_sets}; do
-    steps/make_mfcc_pitch.sh --nj 10 --mfcc-config conf/mfcc_hires.conf \
-      --cmd "$train_cmd" data/${datadir}_hires exp/make_hires/$datadir $mfccdir || exit 1;
-    steps/compute_cmvn_stats.sh data/${datadir}_hires exp/make_hires/$datadir $mfccdir || exit 1;
+    steps/make_mfcc_pitch.sh --nj $nj --mfcc-config conf/mfcc_hires.conf \
+      --cmd "$train_cmd" data/${datadir}_hires || exit 1;
+    steps/compute_cmvn_stats.sh data/${datadir}_hires || exit 1;
     utils/fix_data_dir.sh data/${datadir}_hires || exit 1;
     # create MFCC data dir without pitch to extract iVector
     utils/data/limit_feature_dim.sh 0:39 data/${datadir}_hires data/${datadir}_hires_nopitch || exit 1;
-    steps/compute_cmvn_stats.sh data/${datadir}_hires_nopitch exp/make_hires/$datadir $mfccdir || exit 1;
+    steps/compute_cmvn_stats.sh data/${datadir}_hires_nopitch || exit 1;
+    utils/fix_data_dir.sh data/${datadir}_hires_nopitch
   done
 fi
 
@@ -86,6 +86,7 @@ if [ $stage -le 4 ]; then
 
   num_utts_total=$(wc -l <data/${train_set}_sp_hires_nopitch/utt2spk)
   num_utts=$[$num_utts_total/4]
+
   utils/data/subset_data_dir.sh data/${train_set}_sp_hires_nopitch \
      $num_utts ${temp_data_root}/${train_set}_sp_hires_nopitch_subset
 
@@ -110,7 +111,7 @@ if [ $stage -le 5 ]; then
   # can be sensitive to the amount of data.  The script defaults to an iVector dimension of
   # 100.
   echo "$0: training the iVector extractor"
-  steps/online/nnet2/train_ivector_extractor.sh --cmd "$train_cmd" --nj 10 \
+  steps/online/nnet2/train_ivector_extractor.sh --cmd "$train_cmd" --nj 10 --num-processes 1 --num-threads 8 \
      data/${train_set}_sp_hires_nopitch exp/nnet3${nnet3_affix}/diag_ubm \
      exp/nnet3${nnet3_affix}/extractor || exit 1;
 fi

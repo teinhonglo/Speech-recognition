@@ -9,12 +9,20 @@
 # conf/queue.conf to match your queue's configuration.  Search for
 # conf/queue.conf in http://kaldi-asr.org/doc/queue.html for more information,
 # or search for the string 'default_config' in utils/queue.pl or utils/slurm.pl.
+#export train_cmd="run.pl"
+#export train_cmd="queue.pl --config conf/queue_mod -q all.q@nv960 -q all.q@nv550 -q all.q@nv980"
+export train_cmd="queue.pl --config conf/queue_mod"
+export decode_cmd="queue.pl --config conf/queue_mod"
+# the use of cuda_cmd is deprecated, used only in 'nnet1',
+export cuda_cmd="queue.pl --config conf/run_nv1080"
 
-#export train_cmd="run.pl --mem 2G"
-#export decode_cmd="run.pl --mem 4G"
-#export mkgraph_cmd="run.pl --mem 8G"
+if [[ "$(hostname -f)" == "*.fit.vutbr.cz" ]]; then
+  queue_conf=$HOME/queue_conf/default.conf # see example /homes/kazi/iveselyk/queue_conf/default.conf,
+  export train_cmd="queue.pl --config $queue_conf --mem 2G --matylda 0.2"
+  export decode_cmd="queue.pl --config $queue_conf --mem 3G --matylda 0.1"
+  export cuda_cmd="queue.pl --config $queue_conf --gpu 1 --mem 10G --tmp 40G"
+fi
 
-export train_cmd="queue.pl --mem 2G"
-export decode_cmd="queue.pl --mem 4G"
-export mkgraph_cmd="queue.pl --mem 8G"
-
+# On Eddie use:
+#export train_cmd="queue.pl -P inf_hcrc_cstr_nst -l h_rt=08:00:00"
+#export decode_cmd="queue.pl -P inf_hcrc_cstr_nst  -l h_rt=05:00:00 -pe memory-2G 4"

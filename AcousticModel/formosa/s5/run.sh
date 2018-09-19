@@ -46,7 +46,6 @@ if [ $stage -le -2 ]; then
   echo "$0: G compilation, check LG composition"
   utils/format_lm.sh data/lang data/local/lm/3gram-mincount/lm_unpruned.gz \
       data/local/dict/lexicon.txt data/lang_test || exit 1;
-
 fi
 
 # Now make MFCC plus pitch features.
@@ -59,11 +58,10 @@ if [ $stage -le -1 ]; then
 
   echo "$0: making mfccs"
   for x in train test; do
-    steps/make_mfcc_pitch.sh --cmd "$train_cmd" --nj $num_jobs data/$x exp/make_mfcc/$x $mfccdir || exit 1;
-    steps/compute_cmvn_stats.sh data/$x exp/make_mfcc/$x $mfccdir || exit 1;
+    steps/make_mfcc_pitch.sh --cmd "$train_cmd" --nj $num_jobs data/$x || exit 1;
+    steps/compute_cmvn_stats.sh data/$x || exit 1;
     utils/fix_data_dir.sh data/$x || exit 1;
   done
-
 fi
 
 # mono
@@ -191,15 +189,55 @@ if [ $stage -le 5 ]; then
 fi
 
 if [ $stage -le 6 ]; then
-  local/run_cleanup_segmentation.sh --nj $num_jobs --stage 3
+  # Data Preparation
+  echo "$0: Data Preparation (NER-Trs-Vol2)"
+  rdata_root=`dirname $data_dir`
+  local/prepare_data_augmentation.sh $rdata_root/NER-Trs-Vol2 train_vol2 || exit 1;
+ 
+  local/train_lms_aug.sh --text data/local/train/text_vol1_2 --dir data/local/lm_vol1_2 || exit 1;
+
+  # G compilation, check LG composition
+  echo "$0: G compilation, check LG composition"
+  utils/format_lm.sh data/lang data/local/lm_vol1_2/3gram-mincount/lm_unpruned.gz \
+      data/local/dict/lexicon.txt data/lang_12_test || exit 1;
+
+  steps/make_mfcc_pitch.sh --cmd "$train_cmd" --nj $num_jobs data/train_vol2 
+  steps/compute_cmvn_stats.sh data/train_vol2
+  utils/fix_data_dir.sh data/train_vol2
+
+  # combine all the data
+  utils/combine_data.sh \
+   data/train_vol1_2 data/train data/train_vol2
+  
+  utils/fix_data_dir.sh data/train_vol1_2
+
+  steps/align_fmllr.sh --nj $num_jobs --cmd "$train_cmd" \
+    data/train_vol1_2 data/lang exp/tri5a exp/tri5b_ali
+
+fi
+
+if [ $stage -le 7 ]; then
+
+  steps/train_sat.sh --cmd "$train_cmd" \
+    3500 100000 data/train_vol1_2 data/lang exp/tri5b_ali exp/tri6a || exit 1;
+  
+  steps/align_fmllr.sh --cmd "$train_cmd" --nj $num_jobs \
+    data/train_vol1_2 data/lang exp/tri6a exp/tri6a_ali || exit 1;
+ 
+  utils/mkgraph.sh data/lang_12_test exp/tri6a exp/tri6a/graph_12 || exit 1; 
+  # decode tri5
+  steps/decode_fmllr.sh --stage 1 --cmd "$decode_cmd --num-threads 5" --num-threads 6 --nj $num_jobs --config conf/decode.config \
+       exp/tri6a/graph_12 data/test exp/tri6a/decode_test_12 || exit 1;
+fi
+
+if [ $stage -le 8 ]; then
+  local/run_cleanup_segmentation.sh --nj $num_jobs --stage 3 --data data/train_vol1_2 --srcdir exp/tri6a
 fi
 
 # chain model
-if [ $stage -le 7 ]; then
-
+if [ $stage -le 9 ]; then
   echo "$0: train chain model"
-  local/chain/run_tdnn.sh --stage $train_stage
-
+  local/chain/run_tdnn.sh --stage $train_stage --affix _aug
 fi
 
 # getting results (see RESULTS file)
@@ -215,3 +253,4 @@ fi
 echo "$0: all done"
 
 exit 0;
+
