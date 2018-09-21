@@ -111,7 +111,7 @@ if [ $stage -le 5 ]; then
   # can be sensitive to the amount of data.  The script defaults to an iVector dimension of
   # 100.
   echo "$0: training the iVector extractor"
-  steps/online/nnet2/train_ivector_extractor.sh --cmd "$train_cmd" --nj 10 --num-processes 1 --num-threads 8 \
+  steps/online/nnet2/train_ivector_extractor.sh --cmd "$train_cmd" --nj 10 --num-processes 1 --num-threads 5 \
      data/${train_set}_sp_hires_nopitch exp/nnet3${nnet3_affix}/diag_ubm \
      exp/nnet3${nnet3_affix}/extractor || exit 1;
 fi
