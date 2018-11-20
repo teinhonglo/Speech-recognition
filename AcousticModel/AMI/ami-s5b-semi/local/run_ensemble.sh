@@ -64,36 +64,35 @@ WORD
    local/score_combine.sh --cmd "$decode_cmd" --stage 0 \
                            data/ihm/semisup/${decode_set}_hires \
                            data/lang_ami.o3g.kn.pr1-7 \
-                           $src_model_root/tdnn_1d_sp_bi/decode_${decode_set}:1 \
-                           $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn_nonpost/decode_poco_best_phn_${decode_set}:1 \
-                           $exp_root/ensemble/tdnn_hyp_stage/decode_1d_${decode_set}_nopost
+                           $src_model_root/tdnn_1a_sp_bi/decode_${decode_set}:1 \
+                           $src_model_root/tdnn_1a_sp_bi_semisup_1b_best_phn_nonpost/decode_poco_best_phn_${decode_set}:1 \
+                           $exp_root/ensemble/tdnn_hyp_stage/decode_${decode_set}_nopost
 						   
    local/score_combine.sh --cmd "$decode_cmd" --stage 0 \
                            data/ihm/semisup/${decode_set}_hires \
                            data/lang_ami.o3g.kn.pr1-7 \
-                           $src_model_root/tdnn_1d_sp_bi/decode_${decode_set}:1 \
-			   $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn_nonpost/decode_poco_best_phn_${decode_set}:1 \
-                           $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn/decode_poco_best_phn_${decode_set}:1 \
-                           $exp_root/ensemble/tdnn_hyp_stage/decode_1d_${decode_set}_best_phn
-
+                           $src_model_root/tdnn_1a_sp_bi/decode_${decode_set}:1 \
+						   $src_model_root/tdnn_1a_sp_bi_semisup_1b_best_phn_nonpost/decode_poco_best_phn_${decode_set}:1 \
+                           $src_model_root/tdnn_1a_sp_bi_semisup_1b_best_phn/decode_poco_best_phn_${decode_set}:1 \
+                           $exp_root/ensemble/tdnn_hyp_stage/decode_${decode_set}_best_phn
+   
     local/score_combine.sh --cmd "$decode_cmd" --stage 0 \
                            data/ihm/semisup/${decode_set}_hires \
                            data/lang_ami.o3g.kn.pr1-7 \
-                           $src_model_root/tdnn_1d_sp_bi/decode_${decode_set}:1 \
-			   $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn_nonpost/decode_poco_best_phn_${decode_set}:1 \
-                           $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn/decode_poco_best_phn_${decode_set}:1 \
-			   $src_model_root/tdnn_1d_sp_bi_semisup_1d/decode_poco_${decode_set}:1 \
-                           $exp_root/ensemble/tdnn_hyp_stage/decode_1d_${decode_set}_semi					   
+                           $src_model_root/tdnn_1a_sp_bi/decode_${decode_set}:1 \
+						   $src_model_root/tdnn_1a_sp_bi_semisup_1b_best_phn_nonpost/decode_poco_best_phn_${decode_set}:1 \
+                           $src_model_root/tdnn_1a_sp_bi_semisup_1b_best_phn/decode_poco_best_phn_${decode_set}:1 \
+						   $src_model_root/tdnn_1a_sp_bi_semisup_1b/decode_poco_${decode_set}:1
+                           $exp_root/ensemble/tdnn_hyp_stage/decode_${decode_set}_semi					   
   done
 fi
-
 
 
 if [ $stage -le 1 ]; then
   echo "$0, Hypothesis Combine and generate lattice"
   for decode_set in dev eval; do
     local/score_combine_lats.sh --cmd "$decode_cmd" --stage 0 \
-			   data/ihm/semisup/${decode_set}_hires \
+						   data/ihm/semisup/${decode_set}_hires \
                            $src_model_root/tdnn_1a_sp_bi/graph_poco \
                            $src_model_root/tdnn_1a_sp_bi/decode_${decode_set}:1 \
                            $src_model_root/tdnn_1b_sp_bi/decode_${decode_set}:1 \
@@ -102,7 +101,7 @@ if [ $stage -le 1 ]; then
                            $exp_root/ensemble/tdnn_hyp/decode_${decode_set}_lats
 
     local/score_combine_lats.sh --cmd "$decode_cmd" --stage 0 \
-                           data/ihm/semisup/${decode_set}_hires \
+	                       data/ihm/semisup/${decode_set}_hires \
                            $src_model_root/tdnn_1a_sp_bi_semisup_1b/graph_poco \
                            $src_model_root/tdnn_1a_sp_bi_semisup_1b/decode_poco_${decode_set}:1 \
                            $src_model_root/tdnn_1b_sp_bi_semisup_1a/decode_poco_${decode_set}:1 \
@@ -145,63 +144,50 @@ fi
 if [ $stage -le 2 ]; then
   echo "$0, Frame Level Combine and generate lattice"
   for decode_set in dev eval; do
-    steps/nnet3/decode_score_fusion_update.sh --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
+    steps/nnet3/decode_score_fusion.sh --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
 	                   --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
-			   --num-threads 5 \
-                           --use-gpu true \
-                           data/ihm/semisup/${decode_set}_hires \
+			   --num-threads 4 --frame-subsampling-factor 3 --use-gpu true \
                            $src_model_root/tdnn_1a_sp_bi/graph_poco \
+                           data/ihm/semisup/${decode_set}_hires \
                            $src_model_root/tdnn_1a_sp_bi \
                            $src_model_root/tdnn_1b_sp_bi \
                            $src_model_root/tdnn_1c_sp_bi \
                            $src_model_root/tdnn_1d_sp_bi \
-                           $exp_root/ensemble_test/tdnn_fusion_auto/decode_${decode_set}
-<<WORD    
-    local/score_fusion.sh --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
-	                   --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
-			   --num-threads 5 --frame-subsampling-factor 3 \
-                           --use-gpu true \
-                           data/ihm/semisup/${decode_set}_hires \
-                           $src_model_root/tdnn_1a_sp_bi/graph_poco \
-                           $src_model_root/tdnn_1a_sp_bi \
-                           $src_model_root/tdnn_1b_sp_bi \
-                           $src_model_root/tdnn_1c_sp_bi \
-                           $src_model_root/tdnn_1d_sp_bi \
-                           $exp_root/ensemble_test/tdnn_local_fusion/decode_${decode_set}
+                           $exp_root/ensemble_test/tdnn_fusion/decode_${decode_set}
 
-    local/nnet3/decode_score_fusion.sh --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
-	                       --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
-						   --num-threads 5 --frame-subsampling-factor 3 \
-                           data/ihm/semisup/${decode_set}_hires \
+    steps/nnet3/decode_score_fusion.sh --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
+                           --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
+			   --num-threads 4 --frame-subsampling-factor 3 --use-gpu true \
                            $src_model_root/tdnn_1a_sp_bi_semisup_1b/graph_poco \
+                           data/ihm/semisup/${decode_set}_hires \
                            $src_model_root/tdnn_1a_sp_bi_semisup_1b \
                            $src_model_root/tdnn_1b_sp_bi_semisup_1a \
                            $src_model_root/tdnn_1c_sp_bi_semisup_1c \
                            $src_model_root/tdnn_1d_sp_bi_semisup_1d \
-                           $exp_root/ensemble/tdnn_fusion/decode_semisup_${decode_set}
+                           $exp_root/ensemble_test/tdnn_fusion/decode_semisup_${decode_set}
 
-    local/nnet3/decode_score_fusion.sh --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
-	                       --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
-						   --num-threads 5 --frame-subsampling-factor 3 \
-                           data/ihm/semisup/${decode_set}_hires \
+    steps/nnet3/decode_score_fusion.sh --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
+	                   --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
+			   --num-threads 4 --frame-subsampling-factor 3 --use-gpu true \
                            $src_model_root/tdnn_1a_sp_bi_semisup_1b_best_phn/graph_poco_best_phn \
+                           data/ihm/semisup/${decode_set}_hires \
                            $src_model_root/tdnn_1a_sp_bi_semisup_1b_best_phn \
                            $src_model_root/tdnn_1b_sp_bi_semisup_1a_best_phn \
                            $src_model_root/tdnn_1c_sp_bi_semisup_1c_best_phn \
                            $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn \
-                           $exp_root/ensemble/tdnn_fusion/decode_semisup_phn_${decode_set}
+                           $exp_root/ensemble_test/tdnn_fusion/decode_semisup_phn_${decode_set}
 
-    local/score_fusion.sh --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
-	                       --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
-						   --num-threads 5 --frame-subsampling-factor 3 \
-                           data/ihm/semisup/${decode_set}_hires \
+    steps/nnet3/decode_score_fusion.sh --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
+	                   --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
+			   --num-threads 4 --frame-subsampling-factor 3 --use-gpu true \
                            $src_model_root/tdnn_1a_oracle_sp_bi/graph_poco \
+                           data/ihm/semisup/${decode_set}_hires \
                            $src_model_root/tdnn_1a_oracle_sp_bi \
                            $src_model_root/tdnn_1b_oracle_sp_bi \
                            $src_model_root/tdnn_1c_oracle_sp_bi \
                            $src_model_root/tdnn_1d_oracle_sp_bi \
-                           $exp_root/ensemble/tdnn_fusion/decode_oracle_${decode_set}
-
+                           $exp_root/ensemble_test/tdnn_fusion/decode_oracle_${decode_set}
+<<WORD
     local/score_fusion.sh --cmd "$decode_cmd" --stage 0 --acwt 1.0 --post-decode-acwt 10.0 \
 	                       --online-ivector-dir $ivector_root_dir/ivectors_${decode_set}_hires \
 						   --num-threads 5 --frame-subsampling-factor 3 \
@@ -216,63 +202,4 @@ WORD
   done
 fi  
 
-if [ $stage -le 3 ]; then
-  for decode_set in dev eval; do 
-      local/score_rover.sh   --cmd "$decode_cmd" --stage 0 \
-                           data/ihm/semisup/${decode_set}_hires \
-                           $src_model_root/tdnn_1a_sp_bi/decode_${decode_set}:10 \
-                           $src_model_root/tdnn_1b_sp_bi/decode_${decode_set}:10 \
-                           $src_model_root/tdnn_1c_sp_bi/decode_${decode_set}:10 \
-                           $src_model_root/tdnn_1d_sp_bi/decode_${decode_set}:10 \
-                           $exp_root/ensemble/tdnn_rover/decode_${decode_set}
-
-      local/score_rover.sh --cmd "$decode_cmd" --stage 0 \
-                           data/ihm/semisup/${decode_set}_hires \
-                           $src_model_root/tdnn_1a_sp_bi_semisup_1b/decode${decode_affix}_${decode_set}:10 \
-                           $src_model_root/tdnn_1b_sp_bi_semisup_1a/decode${decode_affix}_${decode_set}:10 \
-                           $src_model_root/tdnn_1c_sp_bi_semisup_1c/decode${decode_affix}_${decode_set}:10 \
-                           $src_model_root/tdnn_1d_sp_bi_semisup_1d/decode${decode_affix}_${decode_set}:10 \
-                           $exp_root/ensemble/tdnn_rover/decode_semisup_${decode_set}
-
-      local/score_rover.sh --cmd "$decode_cmd" --stage 0 \
-                           data/ihm/semisup/${decode_set}_hires \
-                           $src_model_root/tdnn_1a_sp_bi_semisup_1b_best_phn/decode${decode_affix}_best_phn_${decode_set}:10 \
-                           $src_model_root/tdnn_1b_sp_bi_semisup_1a_best_phn/decode${decode_affix}_best_phn_${decode_set}:10 \
-                           $src_model_root/tdnn_1c_sp_bi_semisup_1c_best_phn/decode${decode_affix}_best_phn_${decode_set}:10 \
-                           $src_model_root/tdnn_1d_sp_bi_semisup_1d_best_phn/decode${decode_affix}_best_phn_${decode_set}:10 \
-                           $exp_root/ensemble/tdnn_rover/decode_semisup_phn_${decode_set}
-
-      local/score_rover.sh --cmd "$decode_cmd" --stage 0 \
-                           data/ihm/semisup/${decode_set}_hires \
-                           $src_model_root/tdnn_1a_oracle_sp_bi/decode_${decode_set}:10 \
-                           $src_model_root/tdnn_1b_oracle_sp_bi/decode_${decode_set}:10 \
-                           $src_model_root/tdnn_1c_oracle_sp_bi/decode_${decode_set}:10 \
-                           $src_model_root/tdnn_1d_oracle_sp_bi/decode_${decode_set}:10 \
-                           $exp_root/ensemble/tdnn_rover/decode_oracle_${decode_set}
-  done
-fi
-
-
-if [ $stage -le 4 ]; then
-  for decode_set in eval; do
-    steps/nnet3/compute_output.sh  --stage 0 --nj 80 --use-gpu true --frame-subsampling-factor 3 \
-                                   --apply-exp true --cmd "$decode_cmd" \
-                                   --online-ivector-dir exp/ihm/semisup_20k/nnet3_semi20k_80k/ivectors_${decode_set}_hires \
-                                   data/ihm/semisup/${decode_set}_hires \
-                                   $src_model_root/tdnn_1b_sp_bi \
-                                   $src_model_root/tdnn_1b_sp_bi/analysis_output
-
-#    steps/nnet3/compute_score_fusion.sh --stage 2 --nj 80 --acwt 1.0 --post-decode-acwt 10.0 --use-gpu true \
-#                                --apply-exp true --cmd "$decode_cmd --num-threads 3" \
-#                                --online-ivector-dir exp/ihm/semisup_20k/nnet3_semi20k_80k/ivectors_${decode_set}_hires \
-#                                data/ihm/semisup/${decode_set}_hires exp/ihm/semisup_20k/chain_semi20k_80k/tdnn_1a_sp_bi/graph_poco \
-#                                $src_model_root/tdnn_1a_sp_bi \
-#                                $src_model_root/tdnn_1b_sp_bi \
-#                                $src_model_root/tdnn_1c_sp_bi \
-#                                $src_model_root/tdnn_1d_sp_bi \
-#                                $exp_root/ensemble/fusion_analysis/decode_${decode_set}
-  done
-fi
-
 exit 0;
-

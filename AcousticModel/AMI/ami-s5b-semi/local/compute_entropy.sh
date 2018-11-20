@@ -1,0 +1,1 @@
+python local/compute_entropy_nnet3.py exp/ihm/semisup_20k/ensemble/fusion_analysis/decode_eval/output.scp exp/ihm/semisup_20k/chain_semi20k_80k/tdnn_1b_sp_bi/analysis_output/output.scp exp/ihm/semisup_20k/ensemble/fusion_analysis/entropy_plots ent_comb_sig_10.png

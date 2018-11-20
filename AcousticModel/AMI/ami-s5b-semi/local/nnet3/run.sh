@@ -184,11 +184,10 @@ if [ $stage -le 13 ]; then
   # Create supervised and unsupervised data subsets
   num_utt=`cat data/$mic/train/text | wc -l`
   split_ratio=2
-  train_utt=$(($num_utt*$split_ratio/10))
+  train_utt=$(($num_utt*2/10))
   # Supervised and unsupervised directory  
-  train_sup_dir=train_sup 
+  train_sup_dir=train_sup
   train_unsup_dir=train_unsup_$((($num_utt-$train_utt)/1000))k
-  #train_unsup_dir=train_unsup_29k
   if [ -d data/$mic/semisup/$train_sup_dir ]; then
 	echo "$0, data/$mic/semisup/$train_sup_dir already exists. we don't recompute it. continue .."
   else	
@@ -199,56 +198,26 @@ if [ $stage -le 13 ]; then
   #utils/subset_data_dir.sh --speakers data/train_unsup100k 250000 data/train_unsup100k_250k
   #local/ts_adapt/run_20k.sh --mic $mic --train_sup_dir $train_sup_dir --train_unsup_dir $train_unsup_dir --semi_dir semisup --stage $semi_stage
   local/semisup/run_20k.sh --mic $mic --train_sup_dir $train_sup_dir --train_unsup_dir $train_unsup_dir --semi_dir semisup --stage $semi_stage
-  exit 0;
 fi
 
 if [ $stage -le 14 ]; then
-   ali_opt=
-  [ "$mic" != "ihm" ] && ali_opt="--use-ihm-ali true"
-  # Create supervised and unsupervised data subsets
-  num_utt=`cat data/$mic/train/text | wc -l`
-  split_ratio=1
-  train_utt=$(($num_utt*$split_ratio/10))
-  # Supervised and unsupervised directory  
-  train_sup_dir=train_sup
-  train_unsup_dir=train_unsup_$((($num_utt-$train_utt)/1000))k
-  data_root=data/$mic/semisup_$((($train_utt)/1000))k
-  if [ -d $data_root/$train_sup_dir ]; then
-	echo "$0, $data_root/$train_sup_dir already exists. we don't recompute it. continue .."
+  exit 0
+  adapt_dir=adapt
+  dest_dir=
+  if [ -d data/$mic/$adapt_dir/$dest_dir ]; then
+    echo "$0, data/$mic/$adapt_dir/$dest_dir already exists. we don't recompute it. continue .."
   else	
-    utils/subset_data_dir.sh --speakers data/$mic/train $train_utt $data_root/$train_sup_dir
-    utils/subset_data_dir.sh --spk-list <(utils/filter_scp.pl --exclude $data_root/$train_sup_dir/spk2utt data/$mic/train/spk2utt) \
-                             data/$mic/train $data_root/$train_unsup_dir
-  fi							 
-  #utils/subset_data_dir.sh --speakers data/train_unsup100k 250000 data/train_unsup100k_250k
-  #local/ts_adapt/run_20k.sh --mic $mic --train_sup_dir $train_sup_dir --train_unsup_dir $train_unsup_dir --semi_dir semisup --stage $semi_stage
-  local/semisup/run_10k.sh --mic $mic --train_sup_dir $train_sup_dir --train_unsup_dir $train_unsup_dir --semi_dir semisup --stage $semi_stage \
-                           --data-root $data_root
-  exit 0;						   
+    utils/copy_data_dir.sh data/$mic/train_cleaned_sp_hires_comb data/$mic/$adapt_dir/train_cleaned_sp_hires_comb
+	utils/copy_data_dir.sh data/$mic/train data/$mic/$adapt_dir/$train_sup_dirin
+	utils/copy_data_dir.sh data/$mic/dev data/$mic/$adapt_dir/$train_unsup_dir
+	cp -r exp/$mic/nnet3_cleaned exp/$mic/$adapt_dir/nnet3_cleaned
+	cp -r exp/$mic/chain_cleaned exp/$mic/$adapt_dir/chain_cleaned
+  fi
+   
+  local/$adapt_dir/run_20k.sh --mic $mic --train_sup_dir $train_sup_dir --train_unsup_dir $train_unsup_dir --semi_dir $adapt_dir --stage $semi_stage
 fi
 
 if [ $stage -le 15 ]; then
-  ali_opt=
-  [ "$mic" != "ihm" ] && ali_opt="--use-ihm-ali true"
-  # Create supervised and unsupervised data subsets
-  num_utt=`cat data/$mic/train/text | wc -l`
-  split_ratio=2
-  train_utt=$(($num_utt*$split_ratio/10))
-  # Supervised and unsupervised directory  
-  train_sup_dir=train_sup
-  train_unsup_dir=train_unsup_$((($num_utt-$train_utt)/1000))k
-  if [ -d data/$mic/semisup/$train_sup_dir ]; then
-	echo "$0, data/$mic/semisup/$train_sup_dir already exists. we don't recompute it. continue .."
-  else	
-    utils/subset_data_dir.sh --speakers data/$mic/train $train_utt data/$mic/semisup/$train_sup_dir
-    utils/subset_data_dir.sh --spk-list <(utils/filter_scp.pl --exclude data/$mic/semisup/$train_sup_dir/spk2utt data/$mic/train/spk2utt) \
-                             data/$mic/train data/$mic/semisup/$train_unsup_dir
-  fi
-  local/adapt/run_20k.sh --mic $mic --train_sup_dir $train_sup_dir --train_unsup_dir $train_unsup_dir --semi_dir semisup --stage $semi_stage
-  exit 0;
-fi
-
-if [ $stage -le 16 ]; then
   # getting results
   for x in exp/$mic/*/*/decode_*; do grep Sum $x/*scor*/*ys | utils/best_wer.sh; done
   echo "Done"
