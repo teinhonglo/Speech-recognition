@@ -10,7 +10,7 @@
 # local/semisup/run_50k.sh shows how to call this.
 
 # We use the combined data for i-vector extractor training.
-# We use 4-gram LM trained on 1250 hours of data excluding the 250 hours
+
 # unsupervised data to create LM for decoding. Rescoring is done with
 # a larger 4-gram LM.
 # This differs from the case in run_tdnn_100k_semisupervised.sh.
@@ -50,7 +50,7 @@ data_root=data/$mic/semisup
 chain_affix=_semi20k_20k_80k    # affix for chain dir
                                   # 50 hour subset out of 100 hours of supervised data
                                   # 250 hour subset out of (1500-100=1400) hours of unsupervised data 
-tdnn_affix=_semisup_1a_smbr
+tdnn_affix=_semisup_1a
 
 # Datasets -- Expects data/$supervised_set and data/$unsupervised_set to be
 # present
@@ -190,10 +190,10 @@ fi
 # Get best path alignment and lattice posterior of best path alignment to be
 # used as frame-weights in lattice-based training
 if [ $stage -le 8 ]; then
-  steps/best_path_weights_smbr.sh --cmd "${train_cmd}" --acwt 0.1 \
+  steps/best_path_weights.sh --cmd "${train_cmd}" --acwt 0.1 \
     $data_root/${unsupervised_set_perturbed}_hires_comb \
     $sup_chain_dir/decode_${unsupervised_set_perturbed}_big \
-    $sup_chain_dir/best_path_${unsupervised_set_perturbed}_neg_big
+    $sup_chain_dir/best_path_${unsupervised_set_perturbed}_big
 fi
 
 frame_subsampling_factor=1
