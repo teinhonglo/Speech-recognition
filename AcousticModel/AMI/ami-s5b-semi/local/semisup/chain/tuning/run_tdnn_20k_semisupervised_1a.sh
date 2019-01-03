@@ -244,7 +244,7 @@ diff $sup_tree_dir/tree $sup_chain_dir/tree || { echo "$0: $sup_tree_dir/tree an
 # supervised and unsupervised data
 if [ $stage -le 10 ]; then
   steps/nnet3/chain/make_weighted_den_fst.sh --num-repeats $lm_weights --cmd "$train_cmd" \
-    ${sup_tree_dir} ${sup_chain_dir}/best_path_${unsupervised_set_perturbed}_neg_big \
+    ${sup_tree_dir} ${sup_chain_dir}/best_path_${unsupervised_set_perturbed}_big \
     $dir
 fi
 
@@ -365,7 +365,7 @@ if [ -z "$unsup_egs_dir" ]; then
       --frame-subsampling-factor $frame_subsampling_factor \
       --cmvn-opts "$cmvn_opts" --lattice-lm-scale $lattice_lm_scale \
       --lattice-prune-beam "$lattice_prune_beam" \
-      --deriv-weights-scp $sup_chain_dir/best_path_${unsupervised_set_perturbed}_neg_big/weights.scp \
+      --deriv-weights-scp $sup_chain_dir/best_path_${unsupervised_set_perturbed}_big/weights.scp \
       --online-ivector-dir $ivector_root_dir/ivectors_${unsupervised_set_perturbed}_hires_comb \
       --generate-egs-scp true $unsup_egs_opts \
       $data_root/${unsupervised_set_perturbed}_hires_comb $dir \
